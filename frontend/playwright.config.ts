@@ -1,11 +1,13 @@
 import { defineConfig } from "@playwright/test";
+const frontendPort = Number(process.env.PLAYWRIGHT_FRONTEND_PORT || 5173);
+const backendPort = Number(process.env.PLAYWRIGHT_BACKEND_PORT || 8000);
 export default defineConfig({
   testDir: "./e2e",
   workers: 1,
   retries: 0,
   timeout: 30000,
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    baseURL: `http://127.0.0.1:${frontendPort}`,
     viewport: { width: 1440, height: 1000 },
     launchOptions: {
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
@@ -15,15 +17,23 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `../backend/.venv/bin/python -m uvicorn app.main:app --app-dir ../backend --port 8000 --no-access-log`,
-      url: "http://127.0.0.1:8000/api/v1/health",
+      command: `../backend/.venv/bin/python -m uvicorn app.main:app --app-dir ../backend --port ${backendPort} --no-access-log`,
+      url: `http://127.0.0.1:${backendPort}/api/v1/health`,
       reuseExistingServer: !process.env.CI,
-      env: { GEMINI_API_KEY: "", NVIDIA_API_KEY: "" },
+      env: {
+        GEMINI_API_KEY: "",
+        NVIDIA_API_KEY: "",
+        CORS_ORIGINS: JSON.stringify([
+          `http://127.0.0.1:${frontendPort}`,
+          `http://localhost:${frontendPort}`,
+        ]),
+      },
     },
     {
-      command: "npm run dev -- --port 5173 --strictPort",
-      url: "http://127.0.0.1:5173",
+      command: `npm run dev -- --port ${frontendPort} --strictPort`,
+      url: `http://127.0.0.1:${frontendPort}`,
       reuseExistingServer: !process.env.CI,
+      env: { API_PROXY_TARGET: `http://127.0.0.1:${backendPort}` },
     },
   ],
 });

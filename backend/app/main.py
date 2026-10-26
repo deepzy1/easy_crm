@@ -105,7 +105,7 @@ async def validation_error(request, exc):
 
 @app.exception_handler(ProviderError)
 async def provider_error(request, exc):
-    return error(request, exc.status, exc.code, exc.message)
+    return error(request, exc.status, exc.code, exc.message, {"upstream_status": exc.upstream_status})
 
 
 @app.get("/api/v1/health", tags=["Health"])

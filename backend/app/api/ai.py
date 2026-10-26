@@ -1,9 +1,11 @@
 from dataclasses import asdict
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.ai.providers import provider_for, validate_model
+from app.ai.catalogue import catalogue
+from app.ai.providers import ProviderError, provider_for, validate_identifier
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.security import admin, limiter, member
@@ -24,7 +26,6 @@ def settings_get(ws: UUID, membership=Depends(member), db: Session = Depends(get
                 "id": name,
                 "name": title,
                 "configured": bool(getattr(settings, f"{name}_api_key").get_secret_value()),
-                "models": getattr(settings, f"{name}_models"),
             }
             for name, title in [("gemini", "Google Gemini"), ("nvidia", "NVIDIA NIM")]
         ],
@@ -32,9 +33,21 @@ def settings_get(ws: UUID, membership=Depends(member), db: Session = Depends(get
     }
 
 
+@router.get("/models")
+async def models_get(
+    ws: UUID, provider: Literal["gemini", "nvidia"], refresh: bool = False, membership=Depends(member)
+):
+    if refresh and membership.role != "admin":
+        raise HTTPException(403, "Only workspace admins can refresh models")
+    limiter.check(f"ai-models:{ws}", 20, 60)
+    config = get_settings()
+    result = await catalogue.get(config, provider, provider_for, refresh)
+    return catalogue.decorate(result, ws, config)
+
+
 @router.put("/settings", response_model=Preference)
-def settings_save(ws: UUID, body: Preference, membership=Depends(admin), db: Session = Depends(get_db)):
-    validate_model(get_settings(), body.provider, body.model)
+async def settings_save(ws: UUID, body: Preference, membership=Depends(admin), db: Session = Depends(get_db)):
+    await catalogue.validate(get_settings(), body.provider, body.model, provider_for)
     pref = db.get(ModelPreference, str(ws))
     if not pref:
         pref = ModelPreference(workspace_id=str(ws), **body.model_dump())
@@ -45,13 +58,30 @@ def settings_save(ws: UUID, body: Preference, membership=Depends(admin), db: Ses
     return body
 
 
+async def execute(ws, config, provider, model, prompt=None):
+    validate_identifier(model)
+    try:
+        adapter = provider_for(provider, config)
+        result = (
+            await adapter.generate(model, prompt)
+            if prompt is not None
+            else await adapter.check_connection(model)
+        )
+    except ProviderError as exc:
+        catalogue.record(ws, config, provider, model, exc)
+        raise
+    catalogue.record(ws, config, provider, model)
+    return asdict(result)
+
+
 @router.post("/test")
 async def connection_test(ws: UUID, body: Preference, membership=Depends(admin)):
     limiter.check(f"ai:{ws}", 10, 60)
     config = get_settings()
-    validate_model(config, body.provider, body.model)
-    result = await provider_for(body.provider, config).check_connection(body.model)
-    return asdict(result)
+    # Fail missing credentials before discovery, without making any provider request.
+    provider_for(body.provider, config).key(body.provider)
+    await catalogue.validate(config, body.provider, body.model, provider_for)
+    return await execute(ws, config, body.provider, body.model)
 
 
 @router.post("/generate")
@@ -60,6 +90,6 @@ async def generate(ws: UUID, body: Prompt, membership=Depends(member), db: Sessi
     pref = db.get(ModelPreference, str(ws))
     if not pref:
         raise HTTPException(409, "Choose and save a default model in Settings → AI Models first")
-    config = get_settings()
-    validate_model(config, pref.provider, pref.model)
-    return asdict(await provider_for(pref.provider, config).generate(pref.model, body.prompt))
+    # A discovery outage must not prevent using an already-saved preference. The
+    # generation endpoint remains authoritative about current model/account access.
+    return await execute(ws, get_settings(), pref.provider, pref.model, body.prompt)

@@ -211,6 +211,7 @@ def test_cross_workspace_reads_writes_notes_settings_and_database_fk(client, own
         ("post", "/ai/generate", {"prompt": "Intruder"}),
     ]:
         assert getattr(client, method)(path(ws_a, tail), headers=headers_b, json=body).status_code == 404
+    assert client.get(path(ws_a, "/ai/models?provider=gemini"), headers=headers_b).status_code == 404
     with SessionLocal() as db:
         row = db.get(Lead, lead["id"])
         row.stage_id = stages_b[0]["id"]
@@ -243,6 +244,8 @@ def test_salesperson_cannot_manage_settings(client, owner):
         membership.role = "salesperson"
         db.commit()
     assert client.get(path(ws, "/ai/settings"), headers=headers).json()["can_manage"] is False
+    assert client.get(path(ws, "/ai/models?provider=gemini&refresh=true"), headers=headers).status_code == 403
+    assert client.get(path(ws, "/ai/models?provider=nvidia"), headers=headers).status_code == 200
     assert (
         client.put(
             path(ws, "/ai/settings"),

@@ -4429,3 +4429,72 @@ tr:hover td {
     font-size: 10px;
   }
 }
+
+.model-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.model-search {
+  max-width: 530px;
+  margin-top: 20px;
+  font-size: 11px;
+}
+.model-search > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.model-search + .model-label {
+  margin-top: 12px;
+}
+.model-details {
+  border: 1px solid #e5ecf8;
+  background: #fafcff;
+  border-radius: 8px;
+  padding: 14px;
+  margin-top: 14px;
+  font-size: 11px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.model-details strong {
+  display: block;
+  margin-top: 5px;
+}
+.model-details p {
+  color: #65758c;
+}
+.model-availability {
+  display: inline-flex;
+  border-radius: 20px;
+  padding: 2px 8px;
+  background: #edf2fa;
+  color: #536782;
+  font-size: 10px;
+}
+.model-availability.available {
+  color: #2563eb;
+  background: #edf3ff;
+}
+.model-availability.verified_working {
+  color: #287552;
+  background: #eaf8ef;
+}
+.model-availability.rate_limited {
+  color: #855c1e;
+  background: #fdf6e8;
+}
+.model-availability.access_restricted,
+.model-availability.unavailable {
+  color: #a84652;
+  background: #fff0f1;
+}
+.settings-actions {
+  flex-wrap: wrap;
+}
+.active-model p {
+  overflow-wrap: anywhere;
+}

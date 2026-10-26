@@ -13,19 +13,23 @@ class Settings(BaseSettings):
     session_ttl_seconds: int = 3600
     gemini_api_key: SecretStr = SecretStr("")
     nvidia_api_key: SecretStr = SecretStr("")
-    gemini_models: list[str] = ["gemini-2.5-flash", "gemini-2.5-pro"]
     nvidia_models: list[str] = [
         "nvidia/nemotron-3-ultra-550b-a55b",
         "nvidia/llama-3.3-nemotron-super-49b-v1.5",
     ]
     ai_timeout_seconds: float = 60
+    ai_models_cache_seconds: int = 300
 
-    @field_validator("gemini_models", "nvidia_models")
+    @field_validator("nvidia_models")
     @classmethod
     def valid_models(cls, values: list[str]) -> list[str]:
         import re
 
-        if any(not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._/-]{0,199}", x) for x in values):
+        if any(
+            not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._/-]{0,199}", x)
+            or any(part in ("", ".", "..") for part in x.split("/"))
+            for x in values
+        ):
             raise ValueError("Invalid model identifier")
         return list(dict.fromkeys(values))
 

@@ -108,7 +108,7 @@ test("AI preferences survive reload and playground displays real missing-key err
   await page
     .getByLabel("Model", { exact: true })
     .selectOption("nvidia/nemotron-3-ultra-550b-a55b");
-  await page.getByRole("button", { name: "Save model preferences" }).click();
+  await page.getByRole("button", { name: "Save as Default" }).click();
   await expect(
     page.getByText("Workspace default", { exact: true }),
   ).toBeVisible();
@@ -117,9 +117,7 @@ test("AI preferences survive reload and playground displays real missing-key err
     "aria-checked",
     "true",
   );
-  await page
-    .getByRole("button", { name: "Test connection", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Test Model", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("NVIDIA_API_KEY");
   await page
     .getByRole("button", { name: "AI Qualification AI", exact: true })

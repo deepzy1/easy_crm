@@ -37,7 +37,32 @@ export type Provider = {
   id: string;
   name: string;
   configured: boolean;
-  models: string[];
+};
+export type AIModel = {
+  id: string;
+  resource_name: string;
+  name: string;
+  family: string;
+  capabilities: string[];
+  availability:
+    | "available"
+    | "verified_working"
+    | "rate_limited"
+    | "access_restricted"
+    | "unavailable"
+    | "unknown";
+  source: "provider" | "configured";
+  free_tier: "unverified";
+  checked_at: string | null;
+  error?: { code: string; message: string } | null;
+};
+export type ModelCatalogue = {
+  provider: string;
+  models: AIModel[];
+  fetched_at: string | null;
+  cached: boolean;
+  stale: boolean;
+  error: { code: string; message: string } | null;
 };
 export type Preference = { provider: string; model: string };
 export type AISettings = {

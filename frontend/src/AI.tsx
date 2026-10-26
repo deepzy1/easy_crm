@@ -12,6 +12,8 @@ import {
   FlaskConical,
   KeyRound,
   LoaderCircle,
+  RefreshCw,
+  Search,
   Send,
   Settings2,
   ShieldCheck,
@@ -19,7 +21,13 @@ import {
   Zap,
 } from "lucide-react";
 import { api } from "./api";
-import type { AISettings, Generation, Preference, Workspace } from "./api";
+import type {
+  AISettings,
+  Generation,
+  ModelCatalogue,
+  Preference,
+  Workspace,
+} from "./api";
 import { Button, Empty, ErrorBox, Loading } from "./components/ui";
 
 export function Settings({
@@ -82,6 +90,14 @@ export function Settings({
     </>
   );
 }
+const availabilityLabels = {
+  available: "Available",
+  verified_working: "Verified working",
+  rate_limited: "Rate-limited",
+  access_restricted: "Access restricted",
+  unavailable: "Unavailable",
+  unknown: "Availability unknown",
+};
 function AIModels({
   base,
   notify,
@@ -98,20 +114,32 @@ function AIModels({
     provider: "gemini",
     model: "",
   });
+  const [search, setSearch] = useState("");
   useEffect(() => {
     if (settings.data)
-      setChoice(
-        settings.data.active || {
-          provider: "gemini",
-          model: settings.data.providers[0]?.models[0] || "",
-        },
-      );
+      setChoice(settings.data.active || { provider: "gemini", model: "" });
   }, [settings.data]);
+  const modelKey = ["ai-models", base, choice.provider];
+  const models = useQuery({
+    queryKey: modelKey,
+    queryFn: () =>
+      api<ModelCatalogue>(`${base}/ai/models?provider=${choice.provider}`),
+    enabled: !!settings.data,
+    staleTime: 300_000,
+  });
+  const refresh = useMutation({
+    mutationFn: (provider: string) =>
+      api<ModelCatalogue>(
+        `${base}/ai/models?provider=${provider}&refresh=true`,
+      ),
+    onSuccess: (data, provider) =>
+      client.setQueryData(["ai-models", base, provider], data),
+  });
   const save = useMutation({
-    mutationFn: () =>
+    mutationFn: (preference: Preference) =>
       api(`${base}/ai/settings`, {
         method: "PUT",
-        body: JSON.stringify(choice),
+        body: JSON.stringify(preference),
       }),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["ai", base] });
@@ -119,12 +147,28 @@ function AIModels({
     },
   });
   const test = useMutation({
-    mutationFn: () =>
+    mutationFn: (preference: Preference) =>
       api<Generation>(`${base}/ai/test`, {
         method: "POST",
-        body: JSON.stringify(choice),
+        body: JSON.stringify(preference),
       }),
+    onSettled: (_data, _error, preference) => {
+      void client.invalidateQueries({
+        queryKey: ["ai-models", base, preference.provider],
+      });
+    },
   });
+  const changeProvider = (provider: string) => {
+    setChoice(
+      settings.data?.active?.provider === provider
+        ? settings.data.active
+        : { provider, model: "" },
+    );
+    setSearch("");
+    test.reset();
+    save.reset();
+    refresh.reset();
+  };
   if (settings.isPending) return <Loading />;
   if (settings.error)
     return (
@@ -136,13 +180,27 @@ function AIModels({
   const selected = settings.data.providers.find(
     (p) => p.id === choice.provider,
   );
+  const rows = models.data?.models || [];
+  const current = rows.find((model) => model.id === choice.model);
+  const filtered = rows.filter((model) =>
+    `${model.id} ${model.name} ${model.family}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
+  );
+  const families = [...new Set(filtered.map((model) => model.family))];
+  const busy = save.isPending || test.isPending || refresh.isPending;
+  const disabled = !settings.data.can_manage || busy;
+  const catalogueError = models.data?.error;
+  const testMatches =
+    test.variables?.provider === choice.provider &&
+    test.variables?.model === choice.model;
   return (
     <div className="settings-layout">
       <div className="settings-main">
         <section className="settings-section">
           <span className="step-label">01 / YOUR PROVIDER</span>
           <h2>Choose your intelligence</h2>
-          <p>Connect the provider that works for your team.</p>
+          <p>Choose a provider configured on your server.</p>
           <div
             className="provider-grid"
             role="radiogroup"
@@ -151,7 +209,7 @@ function AIModels({
             {settings.data.providers.map((p) => (
               <button
                 key={p.id}
-                disabled={!settings.data.can_manage}
+                disabled={disabled}
                 className={`provider-card ${choice.provider === p.id ? "chosen" : ""}`}
                 role="radio"
                 aria-checked={choice.provider === p.id}
@@ -167,24 +225,19 @@ function AIModels({
                   if (!direction) return;
                   event.preventDefault();
                   const providers = settings.data.providers;
-                  const nextIndex =
+                  const index =
                     (providers.findIndex((item) => item.id === p.id) +
                       direction +
                       providers.length) %
                     providers.length;
-                  const next = providers[nextIndex];
-                  setChoice({ provider: next.id, model: next.models[0] || "" });
-                  test.reset();
+                  changeProvider(providers[index].id);
                   (
                     event.currentTarget.parentElement?.querySelectorAll(
                       "button",
-                    )[nextIndex] as HTMLButtonElement
+                    )[index] as HTMLButtonElement
                   )?.focus();
                 }}
-                onClick={() => {
-                  setChoice({ provider: p.id, model: p.models[0] || "" });
-                  test.reset();
-                }}
+                onClick={() => changeProvider(p.id)}
               >
                 <div className="provider-top">
                   <span className={`provider-logo ${p.id}`}>
@@ -217,33 +270,130 @@ function AIModels({
           </div>
         </section>
         <section className="settings-section">
-          <span className="step-label">02 / DEFAULT MODEL</span>
-          <h2>The right model for the job</h2>
+          <div className="model-section-heading">
+            <div>
+              <span className="step-label">02 / DEFAULT MODEL</span>
+              <h2>The right model for the job</h2>
+            </div>
+            <Button
+              disabled={disabled || models.isFetching}
+              onClick={() => {
+                test.reset();
+                refresh.mutate(choice.provider);
+              }}
+            >
+              <RefreshCw
+                size={14}
+                className={refresh.isPending ? "spin" : ""}
+              />
+              {refresh.isPending ? "Refreshing…" : "Refresh Models"}
+            </Button>
+          </div>
           <p>This model will power your workspace’s AI requests.</p>
+          {models.isPending && <Loading />}
+          {models.error && (
+            <ErrorBox
+              message={models.error.message}
+              retry={() => void models.refetch()}
+            />
+          )}
+          {refresh.error && <ErrorBox message={refresh.error.message} />}
+          {catalogueError && catalogueError.code !== "missing_credentials" && (
+            <ErrorBox
+              message={`${models.data?.stale ? "Showing the previous catalogue. " : ""}${catalogueError.message}`}
+            />
+          )}
+          <label className="model-search">
+            <span>
+              <Search size={13} /> Search models
+            </span>
+            <Input
+              type="search"
+              aria-label="Search models"
+              placeholder="Search by name, ID, or family"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              disabled={disabled || !rows.length}
+            />
+          </label>
           <label className="model-label">
             Model
             <Select
               aria-label="Model"
-              disabled={!settings.data.can_manage}
+              disabled={disabled || !rows.length}
               value={choice.model}
               onChange={(e) => {
                 setChoice({ ...choice, model: e.target.value });
                 test.reset();
+                save.reset();
               }}
             >
               <option value="" disabled>
                 Select a model
               </option>
-              {selected?.models.map((m) => (
-                <option value={m} key={m}>
-                  {m}
+              {choice.model && !current && (
+                <option value={choice.model} disabled>
+                  {choice.model} · Not in current catalogue
                 </option>
+              )}
+              {current && !filtered.includes(current) && (
+                <optgroup label="Selected model">
+                  <option value={current.id}>
+                    {current.id} · {availabilityLabels[current.availability]}
+                  </option>
+                </optgroup>
+              )}
+              {families.map((family) => (
+                <optgroup label={family} key={family}>
+                  {filtered
+                    .filter((model) => model.family === family)
+                    .map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.id} · {availabilityLabels[model.availability]}
+                      </option>
+                    ))}
+                </optgroup>
               ))}
             </Select>
           </label>
-          <p className="field-hint">
-            Available models are managed in the backend model catalogue.
-          </p>
+          {!models.isPending && !rows.length && (
+            <p role="status" className="field-hint">
+              No text-generation models found. Check provider configuration and
+              refresh models.
+            </p>
+          )}
+          {rows.length > 0 && filtered.length === 0 && (
+            <p role="status" className="field-hint">
+              No models match your search.
+            </p>
+          )}
+          {current && (
+            <div className="model-details" aria-live="polite">
+              <span className={`model-availability ${current.availability}`}>
+                {availabilityLabels[current.availability]}
+              </span>
+              <strong>{current.name}</strong>
+              <p>Free-tier eligibility unverified</p>
+              <p>
+                {current.checked_at
+                  ? `Last generation check: ${new Date(current.checked_at).toLocaleString()}`
+                  : "Generation access has not been tested."}
+              </p>
+              {current.error && !testMatches && <p>{current.error.message}</p>}
+            </div>
+          )}
+          {models.data?.fetched_at && (
+            <p className="field-hint">
+              Catalogue {models.data.stale ? "stale" : "updated"} ·{" "}
+              {new Date(models.data.fetched_at).toLocaleString()}
+            </p>
+          )}
+          {choice.provider === "nvidia" && (
+            <p className="field-hint">
+              NVIDIA chat models are configured on the server; refresh checks
+              catalogue presence. Listing does not verify inference access.
+            </p>
+          )}
           {!selected?.configured && (
             <div className="key-notice">
               <KeyRound size={17} />
@@ -258,40 +408,46 @@ function AIModels({
             </div>
           )}
           {save.error && <ErrorBox message={save.error.message} />}
-          {test.error && <ErrorBox message={test.error.message} />}
-          {test.data && (
+          {testMatches && test.error && (
+            <ErrorBox message={test.error.message} />
+          )}
+          {testMatches && test.data && (
             <div className="success-box">
               <CircleCheck size={18} />
-              Connected to {test.data.model} · {test.data.latency_ms} ms
+              Verified working: {test.data.model} · {test.data.latency_ms} ms.
+              Free-tier eligibility remains unverified.
             </div>
           )}
           <div className="settings-actions">
             <Button
-              disabled={
-                !choice.model || test.isPending || !settings.data.can_manage
-              }
-              onClick={() => test.mutate()}
+              disabled={disabled || !current}
+              onClick={() => test.mutate(choice)}
             >
               {test.isPending ? (
                 <LoaderCircle size={16} className="spin" />
               ) : (
                 <Zap size={16} />
               )}
-              {test.isPending ? "Testing connection…" : "Test connection"}
+              {test.isPending ? "Testing model…" : "Test Model"}
             </Button>
             <Button
               variant="primary"
               disabled={
-                !choice.model || save.isPending || !settings.data.can_manage
+                disabled ||
+                !current ||
+                current.availability === "unavailable" ||
+                (choice.provider === "gemini" && !!catalogueError)
               }
-              onClick={() => save.mutate()}
+              onClick={() => save.mutate(choice)}
             >
               <Check size={16} />
-              {save.isPending ? "Saving…" : "Save model preferences"}
+              {save.isPending ? "Saving…" : "Save as Default"}
             </Button>
           </div>
           <p className="field-hint">
-            Testing sends a small real request and may use provider quota.
+            Test Model sends one real generation request with a 256-token output
+            cap. It may consume quota or incur charges. A successful test does
+            not confirm free-tier eligibility.
           </p>
         </section>
       </div>

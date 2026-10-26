@@ -10,7 +10,7 @@ Lead management includes create, detail/edit, confirmed permanent deletion, note
 
 Dashboard and Analytics aggregate the current workspace’s records: total leads, qualified status count, active count excluding closed/disqualified, qualification rate, recent records, stage counts/values, and source distribution. Metrics cover all time; monetary values use USD. Small bar marks use actual aggregate counts, not invented historical trends. Lead source tags are manual provenance, not live channel connections.
 
-Settings supports the business profile and per-workspace Gemini/NVIDIA model preference. The server catalogue is configurable through JSON environment lists. Saving another model immediately affects later calls. Connection tests make a real small generation request through the selected adapter; the playground uses the saved preference. Normalized output includes provider, exact model, final text, latency, and optional token counts. There are no automatic retries, fallback calls, or simulated successes. Missing credentials, stale catalogue selection, denied model access, provider errors, timeouts, and unusable output produce sanitized errors. The response budget is 2,048 tokens; reasoning models can exhaust that budget and return an explicit unusable-output error.
+Settings supports the business profile and per-workspace Gemini/NVIDIA model preference. Gemini discovery now uses Google’s paginated Models API; NVIDIA retains a configurable chat allowlist with provider presence refresh. See [AI model upgrade](AI_MODELS.md) for the subsequent focused improvement and current verification. Saving another model immediately affects later calls. Connection tests make a real small generation request through the selected adapter; the playground uses the saved preference. Normalized output includes provider, exact model, final text, latency, and optional token counts. There are no automatic retries, fallback calls, or simulated successes. Missing credentials, stale catalogue selection, denied model access, provider errors, timeouts, and unusable output produce sanitized errors. The response budget is 2,048 tokens; reasoning models can exhaust that budget and return an explicit unusable-output error.
 
 Inbox, Knowledge Base, and Integrations explain their future purpose. No signed webhooks, scraping, PDF ingestion, retrieval, qualification engine, WhatsApp, outbound messaging, billing, or autonomous agents are enabled.
 
@@ -35,7 +35,7 @@ OpenAPI at `/docs` describes the actual schemas. All endpoints below are under `
 - CRM: `GET/POST /workspaces/{ws}/leads`, `GET/PATCH/DELETE /workspaces/{ws}/leads/{lead_id}`, `POST /workspaces/{ws}/leads/{lead_id}/stage`.
 - Notes: `GET/POST /workspaces/{ws}/leads/{lead_id}/notes`.
 - Metrics: `GET /workspaces/{ws}/analytics/overview`.
-- AI: `GET/PUT /workspaces/{ws}/ai/settings`, `POST /workspaces/{ws}/ai/test`, `POST /workspaces/{ws}/ai/generate`.
+- AI: `GET /workspaces/{ws}/ai/models?provider=gemini|nvidia[&refresh=true]`, `GET/PUT /workspaces/{ws}/ai/settings`, `POST /workspaces/{ws}/ai/test`, `POST /workspaces/{ws}/ai/generate`.
 
 Lead collections return `{items, next_cursor}` with `limit`, `cursor`, `q`, `stage_id`, `status`, and `source` parameters. IDs are UUID strings and timestamps UTC. Lead PATCH currently accepts the complete editable lead form; partial patch semantics are deferred. The stage endpoint accepts only `{stage_id}`.
 

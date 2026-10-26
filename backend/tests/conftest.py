@@ -32,6 +32,9 @@ def clean_database(migrated_database):
             db.execute(delete(table))
         db.commit()
     limiter.events.clear()
+    from app.ai.catalogue import catalogue
+
+    catalogue.clear()
 
 
 @pytest.fixture
