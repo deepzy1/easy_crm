@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-26",
+  "timezone": "Asia/Kolkata",
+  "project": "EasyCRM Session 1",
+  "backend_tests": {
+    "passed": 37,
+    "failed": 0,
+    "database": "PostgreSQL 16",
+    "warning": "Starlette TestClient httpx deprecation"
+  },
+  "browser_tests": {
+    "passed": 4,
+    "failed": 0,
+    "browser": "Chrome 154.0.8037.57",
+    "desktop_viewport": [
+      1440,
+      1000
+    ],
+    "mobile_viewport": [
+      390,
+      844
+    ],
+    "mobile_document_width": 390,
+    "automatic_server_startup": "passed"
+  },
+  "frontend_build": "passed",
+  "python_ruff": "passed",
+  "typescript": "passed",
+  "frontend_prettier": "passed",
+  "migrations": {
+    "head": "be78ada7931e",
+    "schema_drift": false,
+    "downgrade_reapply": "passed on disposable test database",
+    "repeat_upgrade_seed_preservation": "passed"
+  },
+  "dependency_audit": {
+    "npm_known_vulnerabilities": 0,
+    "python_runtime_packages": 38,
+    "python_known_vulnerabilities": 0,
+    "runtime_lock_matches_audit": true
+  },
+  "docker": {
+    "compose_config": "passed with --no-env-resolution",
+    "image_build": "not executed",
+    "container_startup": "not executed",
+    "runtime_limit": "Docker daemon socket access denied"
+  },
+  "live_provider_inference": "not executed: real API credentials not supplied",
+  "remote_ci": "not executed",
+  "production_readiness": "not assessed",
+  "screenshots": "explicitly seeded fictional demo",
+  "git": "uncommitted; no push"
+}

@@ -4,7 +4,7 @@
 
 EasyCRM helps a business capture inbound leads, answer questions using verified company knowledge, qualify interested prospects through structured conversations, and hand off sales-ready opportunities to a human team.
 
-> Status: **Planning / repository bootstrap**. This document describes intended scope, not completed functionality.
+> Status: **Session 1 implemented** — authenticated workspaces, CRM, dashboard, and AI model settings/playground. The broader MVP below remains the roadmap; signed webhook acceptance and production qualification are future work. See [Session 1 implementation](docs/SESSION_1.md) for the precise delivered scope and verification limits.
 
 ## Product principles
 
@@ -62,7 +62,7 @@ EasyCRM/
 │   ├── SRS.md
 │   ├── ARCHITECTURE.md
 │   └── API_SPEC.md
-├── backend/                 # FastAPI application (to build)
+├── backend/                 # FastAPI application
 │   ├── app/
 │   │   ├── api/
 │   │   ├── core/
@@ -74,21 +74,137 @@ EasyCRM/
 │   │   └── workers/
 │   ├── alembic/
 │   └── tests/
-├── frontend/                # React + TS (to build)
-├── infrastructure/          # Docker and deployment (to build)
+├── frontend/                # React + TS
+├── infrastructure/          # Docker development files
 └── .github/workflows/       # CI (to build)
 ```
 
-## Getting started with Codex
+## Session 1 — run locally
 
-1. Create the new Git repository and copy these files to its root.
-2. Ask Codex to read **all five files**, restate milestone M1 scope and implementation assumptions, and implement **only M1** with tests.
-3. Require working migrations, sample seed data, `.env.example`, Docker Compose, API OpenAPI docs and basic frontend navigation before starting M2.
-4. Do not paste real API keys, WhatsApp tokens, or customer personal data into prompts/repo.
+Run all commands from the application root, the directory containing this README and `compose.yaml`. In the supplied workspace that is `/home/deepak/Music/easy_crm/easy_crm` (the outer directory is a wrapper checkout).
 
-### Suggested first Codex prompt
+**Requirements:** Ubuntu, Python 3.12+, Node.js 22 LTS (Node 20.19 also verified), npm, and PostgreSQL 16. Docker Compose is optional. Runtime Python dependencies are pinned with hashes in `backend/requirements.lock`; the frontend uses `package-lock.json`.
 
-> Read README.md and docs/{BRD,SRS,ARCHITECTURE,API_SPEC}.md. Implement milestone M1 only: FastAPI/PostgreSQL backend with Alembic, workspace-isolated authentication and membership, business profiles, contacts/leads, pipeline stages, and authenticated custom form-webhook ingestion with idempotent deduplication; minimal React/TypeScript Attio-inspired white-and-blue CRM shell (Leads + Pipeline + Settings); Docker Compose, .env.example, seed demo data, tests, and run instructions. Follow documented API conventions. Do not build AI or WhatsApp yet. Report implemented endpoints, tests run, and remaining gaps; do not claim untested functionality.
+### Fastest start with Docker Compose
+
+```bash
+cp .env.example .env
+# Edit .env: choose a local PostgreSQL password. Add optional server-side provider keys.
+docker compose up --build
+```
+
+Open **http://localhost:5173** and choose **Create a workspace**. Registration creates your user, an admin membership, and the seven pipeline stages. New workspaces are empty. OpenAPI is at **http://localhost:8000/docs**, health at **http://localhost:8000/api/v1/health**. Database data persists in a named volume. The migration service runs before the backend; nothing uses `create_all` at startup.
+
+Optional fictional demo, from another terminal:
+
+```bash
+docker compose exec backend python -m app.seed --email demo@example.com
+# Choose a password at the prompt, then sign in with that email/password.
+```
+
+Compose exposes services only on loopback. Its frontend is a local Vite development server, not a production hosting configuration. The Compose password must be URL-safe because it is interpolated into the connection URI. For a URI containing special characters, URL-encode credentials in `DATABASE_URL` and adapt the Compose override accordingly.
+
+### Ubuntu setup without Docker
+
+Install Python/venv, PostgreSQL 16, and Node.js 22 LTS using your Ubuntu/package-source installation instructions. With PostgreSQL running:
+
+```bash
+sudo -u postgres psql
+```
+
+In `psql`:
+
+```sql
+CREATE ROLE easycrm LOGIN PASSWORD 'choose-a-local-password';
+CREATE DATABASE easycrm OWNER easycrm;
+CREATE DATABASE easycrm_test OWNER easycrm;
+\q
+```
+
+Then:
+
+```bash
+cp .env.example .env
+# Update DATABASE_URL and POSTGRES_PASSWORD to match your local PostgreSQL credentials.
+make install
+make migrate
+make seed  # Optional: asks for a demo password; never runs automatically.
+make backend
+```
+
+In another terminal at the application root:
+
+```bash
+make frontend
+```
+
+Open **http://localhost:5173**. Use **Create a workspace**, or sign in with the credentials you supplied to the seed script. The seed script creates 17 fictional records and safely does nothing if its email already exists. Do not reuse real passwords. Both localhost and 127.0.0.1 on port 5173 are allowed by default; consistently use one hostname because cookies are host-specific.
+
+Equivalent direct backend commands:
+
+```bash
+cd backend
+source .venv/bin/activate
+alembic upgrade head
+python -m app.seed --email demo@example.com
+uvicorn app.main:app --reload --port 8000 --no-access-log
+```
+
+### Environment and AI setup
+
+`.env` belongs beside this README, **not** inside frontend or backend. See `.env.example` for all options:
+
+- `DATABASE_URL`: SQLAlchemy PostgreSQL/psycopg URI. All services and Alembic use the same setting.
+- `CORS_ORIGINS`: JSON array of exact frontend origins. Browser mutations require a trusted Origin; CLI clients can use a Bearer token.
+- `COOKIE_SECURE`: `false` for local HTTP; set `true` behind production HTTPS. Sessions expire after `SESSION_TTL_SECONDS` (default one hour); sign out revokes the token.
+- `GEMINI_API_KEY`, `NVIDIA_API_KEY`: optional provider credentials, exclusively server-side. Empty keys leave the CRM functional and produce actionable AI errors.
+- `GEMINI_MODELS`, `NVIDIA_MODELS`: JSON arrays of exact model identifiers. Change these and restart the backend to update the catalogue.
+- `AI_TIMEOUT_SECONDS`: timeout per provider request, default 60 seconds. Generation is capped at 2,048 output tokens per request. No automatic retries or provider fallbacks.
+
+To use AI: add a provider key to `.env`, restart the backend, open **Settings → AI models**, select a provider/model, and click **Save model preferences**. Changing the saved active model takes effect immediately, without a restart. **Test connection** sends a small real request and may consume quota. **AI Qualification** opens the text playground and uses the saved workspace default; it does not score leads or send messages to prospects.
+
+The NVIDIA catalogue includes `nvidia/nemotron-3-ultra-550b-a55b`, confirmed against [NVIDIA’s official API reference](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3-ultra-550b-a55b-infer). Account access, quota, model retirement, and pricing are provider-controlled. Gemini follows the [generateContent REST contract](https://ai.google.dev/api/generate-content); identifiers can be checked with [models.list](https://ai.google.dev/api/models). Credentials and raw provider errors are never returned or logged. Missing credentials, rejected models, rate limits, timeouts, and empty responses are shown as errors, never fake success.
+
+### Tests and builds
+
+Backend tests use **real PostgreSQL**, apply migrations, and clear records in the explicitly supplied test database. Only use a disposable database whose name ends in `_test`:
+
+```bash
+export TEST_DATABASE_URL='postgresql+psycopg://easycrm:your-local-password@localhost:5432/easycrm_test'
+make test
+make build
+cd backend
+.venv/bin/alembic check
+.venv/bin/ruff check app tests alembic
+```
+
+Browser tests start local servers automatically unless they are already running. The backend virtual environment and migrated `DATABASE_URL` must exist. Use an empty-key development environment for the missing-key scenarios:
+
+```bash
+cd frontend
+npx playwright install chromium
+npm run test:e2e
+npm run format:check
+```
+
+If Chrome is installed locally, the tests also accept `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/opt/google/chrome/chrome`. Test-created accounts are fictional and remain in the selected development database; use a disposable database for QA. CI uses its own PostgreSQL service. CI configuration is provided but remote CI execution is not claimed.
+
+### What is working
+
+- Responsive white-and-blue React/TypeScript interface, nine navigation destinations, accessible native dialogs, empty/error/loading states, and notifications.
+- Registration, login/logout, hashed opaque sessions, Argon2id passwords, workspace creation/switching, admin membership, and editable business profile.
+- Lead create/view/edit/delete with confirmation, notes, search, source/stage/status filters, cursor pagination, List/Kanban switch, persistent drag-and-drop and keyboard/touch stage menus.
+- PostgreSQL-backed dashboard metrics, recent leads, stage totals/values, source distribution, and basic Analytics. No invented growth rates or AI scores.
+- Configurable Gemini/NVIDIA adapters, credential-presence flags, per-workspace model preferences, connection testing, real-call playground, usage/latency where supplied, and sanitized failure states.
+- Alembic migrations, explicit demo seed, Docker development configuration, dependency locks, backend/browser tests, and CI workflow.
+
+### Future sessions and current limits
+
+Inbox, Knowledge Base, and Integrations are clearly labeled future pages. Signed form webhooks, separate contacts, assignment/invitations, durable timelines, knowledge ingestion/RAG, deterministic lead scoring, WhatsApp, automation, billing, and voice are not implemented. Source labels on leads are attribution only; they do not activate connectors. Pipeline stage and qualification status are independent fields. Values currently use USD; metrics cover all time.
+
+This is a tested local foundation, not a production-readiness claim. Production deployment still requires HTTPS, secure cookies, a production SPA/reverse proxy, shared rate limiting, backups/retention, monitoring, and deployment-specific review. Authentication and AI request throttling are per process. There is no password reset, email verification, or membership-invitation UI yet.
+
+For verified results, screenshot evidence, and exact API differences from the draft specification, see [Session 1 delivery notes](docs/SESSION_1.md). Product requirements and the original architecture documents are preserved.
 
 ## Document map
 
