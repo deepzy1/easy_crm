@@ -179,13 +179,17 @@ def conversation_for(db, ws, lead, channel="simulator", create=False, share=Fals
 def retrieve_knowledge(db, ws, query):
     """Bounded lexical retrieval over explicitly reviewed, tenant-scoped text.
 
-    Session 2 ingestion is absent in this checkout. No URLs are fetched here.
+    Ingestion shares this store; no URLs are fetched during retrieval.
     SQL filters before loading and only relevant excerpts go to the provider.
     """
     terms = list(dict.fromkeys(re.findall(r"[\w]{3,}", query.casefold())))[:25]
     rows = db.scalars(
         select(KnowledgeText)
-        .where(KnowledgeText.workspace_id == str(ws), KnowledgeText.approved.is_(True))
+        .where(
+            KnowledgeText.workspace_id == str(ws),
+            KnowledgeText.approved.is_(True),
+            KnowledgeText.state == "ready",
+        )
         .order_by(KnowledgeText.created_at.desc())
         .limit(100)
     ).all()
@@ -193,10 +197,11 @@ def retrieve_knowledge(db, ws, query):
     for row in rows:
         # Paragraph excerpts preserve exact citation text and bound context size.
         for part in re.split(r"\n\s*\n", row.text):
-            excerpt = part[:1500]
-            rank = sum(t in (row.title + " " + excerpt).casefold() for t in terms)
-            if rank:
-                ranked.append((rank, {"source_id": row.id, "title": row.title, "text": excerpt}))
+            for start in range(0, len(part), 1500):
+                excerpt = part[start : start + 1500]
+                rank = sum(t in (row.title + " " + excerpt).casefold() for t in terms)
+                if rank:
+                    ranked.append((rank, {"source_id": row.id, "title": row.title, "text": excerpt}))
     ranked.sort(key=lambda x: (-x[0], x[1]["source_id"]))
     # One excerpt per source keeps reference IDs unambiguous.
     selected = {}

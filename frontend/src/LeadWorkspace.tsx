@@ -537,6 +537,19 @@ function LeadEditor({
     mutationFn: () => api(`${base}/leads/${lead!.id}`, { method: "DELETE" }),
     onSuccess: () => onSaved("Lead deleted"),
   });
+  const exportSubject = useMutation({
+    mutationFn: () => api(`${base}/leads/${lead!.id}/export`),
+    onSuccess: (data) => {
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `easycrm-subject-${lead!.id}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+  });
   const addNote = useMutation({
     mutationFn: () =>
       api(`${base}/leads/${lead!.id}/notes`, {
@@ -572,8 +585,10 @@ function LeadEditor({
           </div>
           <h3>Delete {lead?.name}?</h3>
           <p>
-            This permanently removes the lead and their notes from this
-            workspace.
+            This permanently removes the lead, notes, messages and qualification
+            history. An admin must pause workspace integrations and drain
+            pending intake first. Related intake content is redacted; a deletion
+            audit remains.
           </p>
           {remove.error && <ErrorBox message={remove.error.message} />}
           <div className="form-actions">
@@ -704,7 +719,19 @@ function LeadEditor({
               </label>
             </div>
             {save.error && <ErrorBox message={save.error.message} />}
+            {exportSubject.error && (
+              <ErrorBox message={exportSubject.error.message} />
+            )}
             <div className="form-actions">
+              {lead && (
+                <Button
+                  type="button"
+                  disabled={exportSubject.isPending}
+                  onClick={() => exportSubject.mutate()}
+                >
+                  Export subject data
+                </Button>
+              )}
               {lead && (
                 <Button
                   type="button"

@@ -1165,8 +1165,8 @@ function Sources({ base, canManage }: { base: string; canManage: boolean }) {
       <h2>Reviewed business sources</h2>
       <p>
         Add verified business text for grounded simulator answers. Only
-        explicitly approved sources are retrieved. Website/PDF ingestion is
-        pending Session 2; this editor does not fetch URLs or process files.
+        explicitly approved sources are retrieved. Import website pages and PDFs
+        in Knowledge Base, then review and approve the extracted text there.
       </p>
       {canManage && (
         <form

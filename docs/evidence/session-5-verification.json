@@ -1,0 +1,54 @@
+{
+  "executed_at": "2026-10-27T07:07:54.833177+00:00",
+  "backend": {
+    "passed": 161,
+    "warnings": 1,
+    "duration_seconds": 30.76,
+    "database": "isolated_postgresql_16"
+  },
+  "browser": {
+    "passed": 11,
+    "duration_seconds": 50.2,
+    "qualification_inference": "explicit_fixture"
+  },
+  "final_affected_browser_case": {
+    "passed": 1,
+    "duration_seconds": 11.7
+  },
+  "evaluation": {
+    "passed": 11,
+    "mode": "fixture_model_outputs_real_guardrails_and_postgresql",
+    "live_inference": false
+  },
+  "static_checks": {
+    "ruff": "passed",
+    "ruff_format": "passed",
+    "typescript_vite_build": "passed",
+    "prettier": "passed",
+    "alembic_check": "passed",
+    "compose_config_dev_and_production": "passed",
+    "git_diff_check": "passed"
+  },
+  "backup_restore": {
+    "mode": "local_fictional_database",
+    "revision": "c82d4f7e1a50",
+    "restored_workspaces": 12,
+    "restored_leads": 8,
+    "restored_sources": 4,
+    "alembic_check": "passed"
+  },
+  "https_fetch": {
+    "mode": "controlled_local_tls_fixture",
+    "hostname_validation": "passed",
+    "close_delimited_response": "passed",
+    "live_public_site": false
+  },
+  "docker_runtime": {
+    "verified": false,
+    "reason": "Docker socket permission denied; sudo -n requires a password"
+  },
+  "live_external_ai": false,
+  "live_meta": false,
+  "deployed_https": false,
+  "limitations": "See SESSION_5_RELEASE_REPORT.md and DEPLOYMENT.md; no production-readiness, live model quality or external delivery claim."
+}

@@ -4,7 +4,7 @@
 
 EasyCRM helps a business capture inbound leads, answer questions using verified company knowledge, qualify interested prospects through structured conversations, and hand off sales-ready opportunities to a human team.
 
-> Status: **Sessions 1, 3 and 4 implemented locally** — authenticated CRM, configurable AI, versioned qualification, signed website webhooks, durable channel worker, official WhatsApp adapter and shared Inbox. Meta/AI success is fixture-verified; live receive/send and permissions remain unverified. Session 2 website/PDF ingestion is absent; reviewed business text remains available. See [Session 4 handoff](docs/SESSION_4_HANDOFF.md) for setup, verification boundaries and next-session gaps.
+> Status: **Session 5 implemented locally** — CRM, configurable AI, reviewed website/PDF knowledge, deterministic qualification, signed channels, Inbox, date-filtered operational analytics, shared throttling and production deployment configuration. External AI/Meta success is fixture-verified; live provider quality, WhatsApp receive/send/permissions and deployed HTTPS remain unverified. See [Session 5 release report](docs/SESSION_5_RELEASE_REPORT.md), [deployment guide](docs/DEPLOYMENT.md) and [interview demo](docs/DEMO_WALKTHROUGH.md).
 
 ## Product principles
 
@@ -83,7 +83,7 @@ EasyCRM/
 
 Run all commands from the application root, the directory containing this README and `compose.yaml`. In the supplied workspace that is `/home/deepak/Music/easy_crm/easy_crm` (the outer directory is a wrapper checkout).
 
-**Requirements:** Ubuntu, Python 3.12+, Node.js 22 LTS (Node 20.19 also verified), npm, and PostgreSQL 16. Docker Compose is optional. Runtime Python dependencies are pinned with hashes in `backend/requirements.lock`; the frontend uses `package-lock.json`.
+**Requirements:** Ubuntu, Python 3.12+, Node.js 22 LTS (Node 20.19 also verified), npm, PostgreSQL 16, and `poppler-utils` (`sudo apt install poppler-utils`) for PDFs. Docker Compose is optional. Runtime Python dependencies are pinned with hashes in `backend/requirements.lock`; the frontend uses `package-lock.json`.
 
 ### Fastest start with Docker Compose
 
@@ -161,7 +161,7 @@ uvicorn app.main:app --reload --port 8000 --no-access-log
 - Gemini uses Google’s paginated Models API with the configured key. The legacy `GEMINI_MODELS` variable is ignored; it cannot restrict the dropdown. Only discovered `generateContent` models compatible with the text adapter are offered.
 - `NVIDIA_MODELS`: JSON array of exact chat-capable model identifiers, retained as an explicit server allowlist because NVIDIA’s generic model list does not reliably declare chat capability. Restart after editing this environment list; **Refresh Models** checks presence against NVIDIA’s `/v1/models`. Listing is not proof of inference access.
 - `AI_MODELS_CACHE_SECONDS`: discovery cache TTL in seconds, default 300. **Refresh Models** bypasses it; successful model observations expire after 15 minutes. These bounded caches are per process; workspace preferences are durable in PostgreSQL.
-- `AI_TIMEOUT_SECONDS`: timeout per provider request, default 60 seconds. Generation is capped at 2,048 output tokens per request. No automatic retries or provider fallbacks.
+- `AI_TIMEOUT_SECONDS`: timeout per provider request, default 60 seconds, maximum 120. Generation is capped at 2,048 output tokens per request. No automatic retries or provider fallbacks.
 
 To use AI: add a provider key to `.env`, restart the backend, open **Settings → AI models**, select a provider/model, and click **Save as Default**. Changing the saved active model takes effect immediately, without a restart. **Refresh Models** retrieves metadata without generation. Search by name, exact ID, or family. **Test Model** sends one real request capped at 256 output tokens and may consume quota or incur charges. It never tests the entire catalogue. “Available” means listed; “Verified working” means a successful recent generation in this workspace. Rate-limited, access restricted, unavailable, and unknown states describe observations, not pricing. **Free-tier eligibility unverified** remains visible even after a successful test; the Models API does not establish account-specific free-tier eligibility. **AI Qualification** now opens the conversation simulator; the original text playground is retained in its **Text playground** tab. Both use the saved workspace model. Neither sends messages to prospects.
 
@@ -170,7 +170,7 @@ To use AI: add a provider key to `.env`, restart the backend, open **Settings �
 Run `make migrate` before starting the updated backend; the additive migration is `57002a21df59`. No new dependencies or environment variables are required. Existing data is preserved and no templates or example leads are installed automatically.
 
 1. In **AI Qualification → Qualification rules**, load the generic B2B or furniture example, edit questions/weights/rules, and **Save new rule version**. Weights must total 100. Only admins can edit or activate rules.
-2. In **Business sources**, add reviewed business text and explicitly approve it for retrieval. This is a text source editor; website/PDF ingestion is still pending. Only approved workspace sources can supply verbatim cited answers.
+2. In **Business sources**, add reviewed business text and explicitly approve it for retrieval. **Knowledge Base** also imports public HTTPS pages and text PDFs for review. Only approved workspace sources can supply verbatim cited answers.
 3. In **Conversation simulator**, select a CRM lead or explicitly create a fictional sample lead. Type as a prospect. Successful turns persist the transcript, supported fields, audit changes, assessment and score on that lead. One real inference call is made per AI turn; missing credentials/provider failures are shown without automatic retries.
 4. Inspect missing facts, point breakdown, source quotes and control state. **View CRM lead** opens the filtered CRM list, whose details include evidence, timeline and a human decision override. The rule version stays pinned for existing conversations. Pipeline stages remain independent.
 
@@ -221,13 +221,34 @@ Open **Integrations**, create a website integration and save the once-displayed 
 
 WhatsApp uses workspace-bound `META_CONNECTIONS` environment credentials and the generated HTTPS callback URL. Inbox supports text replies, delivery status, reasoned human takeover and explicit AI resumption. The worker rechecks control state, opt-out and the 24-hour customer-service window before sending. Outside-window template outreach is unavailable. Facebook Lead Ads and receive-only Instagram adapters have fixture tests; app permissions/live delivery are unverified. Exact callbacks, permission setup, failure/retry semantics, HTML form, signing/cURL samples and operator commands are in [SESSION_4_HANDOFF.md](docs/SESSION_4_HANDOFF.md).
 
-Run `make channel-maintenance` daily to redact old minimized intake payloads and prune request logs. No raw webhook bodies or Meta tokens are stored. Messages and qualification/CRM history persist until scoped lead deletion; production subject-retention policy remains pending.
+Run `make channel-maintenance` daily to redact minimized terminal intake payloads after 30 days, prune old request logs, and remove expired sessions/rate-limit counters. No raw webhook bodies or Meta tokens are stored. Subject export/deletion is admin-only; see the Session 5 privacy limits below.
+
+### Session 5 release setup
+
+Run `make migrate` for additive revision **`c82d4f7e1a50`** before starting API or worker. It preserves existing CRM, templates and sources, adding source metadata, processing completion timestamps, shared PostgreSQL rate counters, worker heartbeat and privacy audits. No new Python or npm dependencies are required; the backend image now installs Poppler.
+
+- **Knowledge Base:** import one authorized public HTTPS page or a text PDF (2 MiB, first 30 pages, up to 12,000 extracted characters). No crawling, OCR, private addresses, credential-bearing URLs or query strings. Imports start unapproved. Review/edit text and approve it explicitly, search approved excerpts, or remove it. Failure is persisted and actionable; remove/reimport after correcting it. A worker crash during synchronous import can leave `processing`; remove and reimport. The existing lexical retrieval considers the latest 100 approved sources, up to three 1,500-character excerpts; no vector search is claimed.
+- **Analytics:** select UTC `[start, end)` or All time. Status/stage/source counts use leads created in that cohort. Qualification rate = currently qualified / all cohort leads, including closed/disqualified/manual/demo records. Handoffs count distinct qualification conversations with recorded handoff/takeover events in the window. Receipt/message states use their own receipt/creation window; failed counts shrink after successful retries. Processing time includes queue/retry delay; inference timing includes simulator fixtures when used. Empty timings remain unavailable; stage distribution is a snapshot, with no revenue/conversion claim. Definitions are visible in the UI.
+- **Reliability:** `/api/v1/health/live` checks the process; `/health/ready` under the same prefix checks schema/database and, when `REQUIRE_WORKER_READY=true`, a heartbeat within 180 seconds. The worker publishes a heartbeat only after a successful tick. JSON request logs contain server-generated correlation IDs, route templates, status and duration, never request bodies/query strings or raw exceptions. Worker logs use operational IDs/status, without message content.
+- **Throttling:** auth, AI, webhook and ingestion limits are atomic fixed-window PostgreSQL counters shared across processes. They fail closed on database errors. Fixed windows permit boundary bursts; production Nginx adds edge limits. The included proxy does not trust forwarded IPs, so API auth limits conservatively share the proxy address; configure a trusted edge for per-client fairness before scaling. Run maintenance daily.
+- **Privacy:** lead details include **Export subject data** for admins. Admin deletion removes lead/notes/contacts/threads/messages/qualification history, redacts matching minimized receipts and retains a content-free audit with actor/opaque subject IDs. Pause all workspace integrations and drain/recover pending intake before deletion. Receipt hashes and external event IDs remain for replay defense; historical references in unrelated sources and backups need operator review. No automatic deletion of active prospects is enabled. Export is a CRM/conversation bundle, not a complete legal data-subject report. Policy, backup expiry and subject identity verification remain operator responsibilities.
+- **Fictional portfolio:** `make seed-portfolio` explicitly creates Willow & Loom, three new leads, an approved sample policy and a furniture rubric. It prompts for a password and does nothing if that email exists. It never selects a model or sends messages. Sample source: `docs/demo/FICTIONAL_BUSINESS_POLICY.txt`.
+- **Production:** use `docker compose -f compose.production.yaml ...`, not the Vite development server. Follow [DEPLOYMENT.md](docs/DEPLOYMENT.md) for HTTPS, secrets, migrations, backup/restore and operational checks. Docker runtime deployment was blocked locally by daemon permissions; this is not a deployed-production claim.
+
+Reproducible guardrail evaluation and bounded measurements, using the same disposable `_test` database required by backend tests:
+
+```bash
+make evaluate
+backend/.venv/bin/python scripts/benchmark.py
+```
+
+These commands write `docs/evidence/session-5-{evaluation,benchmark}.json`. Evaluation supplies model-output fixtures and runs real validation/retrieval/scoring, not live extraction accuracy. The benchmark uses 30 serial in-process requests per operation against PostgreSQL; it excludes TCP/TLS/concurrency/provider delivery. See the release report for measured results and exact commands.
 
 ### Future sessions and current limits
 
-Full Knowledge Base ingestion, general contact management, assignment/invitations, embeddings/vector retrieval, template outreach, Instagram sending, automation, billing, and voice remain pending. Session 3 adds reviewed-text retrieval, deterministic scoring and qualification-specific audit timelines. Session 4 adds the durable channel inbox/outbox and integration delivery logs; live Meta credentials, webhook reachability and app approvals still need verification. Pipeline stage and qualification status are independent fields. CRM monetary values use USD; the opt-in furniture rubric asks for INR and does not convert currencies. Metrics cover all time.
+General contact management, assignment/invitations, embeddings/vector retrieval, template outreach, Instagram sending, automation, billing, and voice remain pending. Live Meta credentials, webhook reachability and app approvals still need verification. Pipeline stage and qualification status are independent fields. CRM monetary values use USD; the opt-in furniture rubric asks for INR and does not convert currencies. Dashboard metrics cover all time; Analytics supports UTC date windows.
 
-This is a tested local foundation, not a production-readiness claim. Production deployment still requires HTTPS, secure cookies, a production SPA/reverse proxy, shared rate limiting, backups/retention, monitoring, and deployment-specific review. Authentication and AI request throttling are per process. There is no password reset, email verification, or membership-invitation UI yet.
+This is a tested local portfolio MVP, not a production-readiness claim. The production SPA/proxy configuration, secure-cookie startup checks, shared rate limiting and backup guide are provided. Real hosting still requires HTTPS, secret provisioning, backup schedules/expiry, monitoring/alerting and deployment-specific review. There is no password reset, email verification, or membership-invitation UI yet. Dependency images need version/digest pinning and updates for a real deployment; select a repository license before public release.
 
 For verified results, screenshot evidence, and exact API differences from the draft specification, see [Session 1 delivery notes](docs/SESSION_1.md). Product requirements and the original architecture documents are preserved.
 

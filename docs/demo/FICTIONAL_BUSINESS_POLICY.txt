@@ -1,0 +1,13 @@
+Willow & Loom - FICTIONAL EasyCRM demo business
+
+We offer curtains, blinds and sofas in Bengaluru.
+Appointments: Monday to Saturday, 10:00 to 18:00 IST.
+
+Delivery takes 5 days after written order confirmation for the fictional demo
+catalogue. Custom orders require a written estimate from a salesperson.
+
+The sample furnishing project minimum budget is INR 50,000.
+Exact prices, stock, warranty terms and discounts require a human quote.
+
+This document contains fictional policies for software demonstrations.
+It is not a real commercial offer. Do not send to actual prospects.

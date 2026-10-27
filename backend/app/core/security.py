@@ -1,8 +1,6 @@
 import hashlib
 import secrets
-import threading
 import time
-from collections import defaultdict, deque
 from datetime import timedelta
 from uuid import UUID
 
@@ -11,8 +9,9 @@ from pwdlib import PasswordHash
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.models.entities import AuthSession, Membership, User, now
+from app.core.database import SessionLocal, get_db
+from app.models.entities import AuthSession, Membership, RateLimitBucket, User, now
+from sqlalchemy.dialects.postgresql import insert
 
 passwords = PasswordHash.recommended()
 DUMMY_HASH = passwords.hash("dummy-password-for-timing")
@@ -58,25 +57,26 @@ def admin(membership: Membership = Depends(member)) -> Membership:
 
 
 class RateLimiter:
-    """Single-process bounded sliding window. Use a shared gateway limiter before scaling out."""
-
-    def __init__(self):
-        self.events = defaultdict(deque)
-        self.lock = threading.Lock()
+    """Atomic fixed-window counters shared by API and worker processes via PostgreSQL."""
 
     def check(self, bucket: str, limit: int, window: int):
-        with self.lock:
-            current = time.monotonic()
-            # Expire all old buckets so arbitrary IP addresses cannot grow memory without bound.
-            for key in list(self.events):
-                while self.events[key] and self.events[key][0] < current:
-                    self.events[key].popleft()
-                if not self.events[key]:
-                    del self.events[key]
-            entries = self.events[bucket]
-            if len(entries) >= limit:
-                raise HTTPException(429, "Too many requests. Please try again later.")
-            entries.append(current + window)
+        current = int(time.time())
+        start = current - current % window
+        # Hash identifiers: auth buckets otherwise contain a client IP address.
+        key = hashlib.sha256(f"{window}:{bucket}".encode()).hexdigest()
+        with SessionLocal() as db:
+            statement = insert(RateLimitBucket).values(
+                key=key, window_start=start, count=1, expires_at=now() + timedelta(seconds=window)
+            )
+            count = db.scalar(
+                statement.on_conflict_do_update(
+                    index_elements=[RateLimitBucket.key, RateLimitBucket.window_start],
+                    set_={"count": RateLimitBucket.count + 1},
+                ).returning(RateLimitBucket.count)
+            )
+            db.commit()
+        if count > limit:
+            raise HTTPException(429, "Too many requests. Please try again later.")
 
 
 limiter = RateLimiter()

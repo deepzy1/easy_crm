@@ -2,6 +2,46 @@
 
 **Version:** 0.1 · **Design status:** Proposed · **Style:** Modular monolith with async workers
 
+**Session 5 implemented architecture:** the diagram immediately below describes the current release. Later diagrams are historical targets; Redis/Celery, vectors and object storage are not runtime dependencies. Approved manual/website/PDF text shares the existing lexical source store. HTTPS fetches pin vetted public DNS answers and review is mandatory. Poppler extraction discards originals. Shared rate counters, worker heartbeat, privacy audits and processing timestamps are PostgreSQL-backed. See [release report](SESSION_5_RELEASE_REPORT.md) and [operations/deployment](DEPLOYMENT.md) for execution evidence and limits.
+
+```mermaid
+flowchart LR
+  Browser[React / TypeScript] --> Edge[HTTPS edge - operator configured]
+  Edge --> Nginx[Compiled SPA / Nginx proxy]
+  Nginx --> API[FastAPI modular monolith]
+  Forms[Signed website / Meta webhooks] --> Edge
+  API --> PG[(PostgreSQL - CRM / knowledge / receipts / outbox / shared limits)]
+  API --> Ingest[Bounded HTTPS / Poppler extraction]
+  PG <--> Worker[Channel worker / heartbeat]
+  Worker --> Core[Existing qualification core / deterministic scorer]
+  API --> Core
+  Core --> Model[Workspace-selected Gemini or NVIDIA]
+  Worker --> Gate[Control / opt-out / window / dedupe gate]
+  Gate --> WhatsApp[Official WhatsApp adapter - live unverified]
+```
+
+```mermaid
+sequenceDiagram
+  participant Source as Signed website / Meta
+  participant API as FastAPI
+  participant DB as PostgreSQL
+  participant Worker as Channel worker
+  participant AI as Configured provider
+  participant Human as Inbox salesperson
+  Source->>API: HMAC-authenticated event
+  API->>DB: Scoped integration lock, unique receipt + normalized envelope
+  API-->>Source: 202 after durable commit
+  Worker->>DB: Claim receipt, dedupe identity, save lead/message
+  Worker->>DB: Commit processing marker before inference
+  Worker->>AI: Approved workspace excerpts + structured extraction request
+  AI-->>Worker: Structured result or sanitized failure
+  Worker->>DB: Validate evidence, deterministic score, audit + outbox plan
+  Human->>API: Takeover with reason
+  API->>DB: Control version + cancel queued AI messages
+  Worker->>DB: Final mode/opt-out/window/version check
+  Note over Worker,DB: Website never sends externally; ambiguous sends are not retried
+```
+
 **Implemented Session 3 update:** The existing FastAPI/React/PostgreSQL monolith now includes immutable qualification templates, one canonical qualification conversation per lead, immutable message/control events, reviewed-text lexical retrieval and deterministic scoring. No workers, vectors, uploads or outbound dispatch were added. `services/qualification.py` owns processing and returns a validated action plan; the caller owns the transaction. A nonblocking lead row lock serializes inference and control changes, while a workspace lock serializes template version allocation/activation. See [SESSION_3_HANDOFF.md](SESSION_3_HANDOFF.md) for the implemented state machine, failure/replay behavior and the outstanding Session 2/4 boundaries. The diagrams below remain the broader target architecture.
 
 **Implemented Session 4 update:** PostgreSQL receipts, internal contact identities, channel threads and a message outbox now provide durable channel processing without introducing Redis/Celery dependencies. `python -m app.channel_worker` runs separately, commits claims before inference/HTTP send, and leaves ambiguous sends for reconciliation. Verified adapters resolve workspace authority server-side. Channel workers explicitly share the existing canonical qualification thread; control versions and final policy checks prevent stale AI sends. See [SESSION_4_HANDOFF.md](SESSION_4_HANDOFF.md) for actual contracts, locking, retries and verification boundaries. The Celery/Redis/object-store diagrams below remain future architecture.

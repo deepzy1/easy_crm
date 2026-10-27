@@ -181,8 +181,10 @@ def lead_stage(
 
 
 @router.delete("/workspaces/{ws}/leads/{lead_id}", status_code=204)
-def lead_delete(ws: UUID, lead_id: UUID, membership=Depends(member), db: Session = Depends(get_db)):
-    db.delete(scoped_lead(db, ws, lead_id))
+def lead_delete(ws: UUID, lead_id: UUID, membership=Depends(admin), db: Session = Depends(get_db)):
+    from app.api.operations import erase_subject
+
+    erase_subject(db, ws, scoped_lead(db, ws, lead_id, lock=True), membership.user_id)
     db.commit()
 
 

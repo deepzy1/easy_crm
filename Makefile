@@ -1,4 +1,4 @@
-.PHONY: install migrate seed backend frontend test build channel-worker channel-maintenance
+.PHONY: install migrate seed seed-portfolio evaluate backend frontend test build channel-worker channel-maintenance
 install:
 	python3 -m venv backend/.venv
 	backend/.venv/bin/pip install --require-hashes -r backend/requirements-dev.lock
@@ -7,6 +7,10 @@ migrate:
 	cd backend && .venv/bin/alembic upgrade head
 seed:
 	cd backend && .venv/bin/python -m app.seed
+seed-portfolio:
+	cd backend && .venv/bin/python -m app.seed_portfolio
+evaluate:
+	backend/.venv/bin/python scripts/evaluate.py
 backend:
 	cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000 --no-access-log
 frontend:

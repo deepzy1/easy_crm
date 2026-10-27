@@ -1,0 +1,63 @@
+{
+  "executed_at": "2026-10-27T07:01:50.013631+00:00",
+  "mode": "fixture_model_outputs_real_guardrails_and_postgresql",
+  "live_inference": false,
+  "cases": [
+    {
+      "name": "test_evaluation_fixture[supported-fields]",
+      "duration_seconds": 0.441,
+      "passed": true
+    },
+    {
+      "name": "test_evaluation_fixture[missing-fields]",
+      "duration_seconds": 0.278,
+      "passed": true
+    },
+    {
+      "name": "test_evaluation_fixture[grounded-delivery]",
+      "duration_seconds": 0.301,
+      "passed": true
+    },
+    {
+      "name": "test_evaluation_fixture[unsupported-warranty]",
+      "duration_seconds": 0.284,
+      "passed": true
+    },
+    {
+      "name": "test_evaluation_fixture[fabricated-citation]",
+      "duration_seconds": 0.302,
+      "passed": true
+    },
+    {
+      "name": "test_evaluation_fixture[low-confidence]",
+      "duration_seconds": 0.283,
+      "passed": true
+    },
+    {
+      "name": "test_evaluation_fixture[invented-field-value]",
+      "duration_seconds": 0.286,
+      "passed": true
+    },
+    {
+      "name": "test_evaluation_fixture[malformed-output]",
+      "duration_seconds": 0.306,
+      "passed": true
+    },
+    {
+      "name": "test_evaluation_fixture[prompt-injection]",
+      "duration_seconds": 0.3,
+      "passed": true
+    },
+    {
+      "name": "test_evaluation_fixture[human-request]",
+      "duration_seconds": 0.273,
+      "passed": true
+    },
+    {
+      "name": "test_evaluation_fixture[opt-out]",
+      "duration_seconds": 0.24,
+      "passed": true
+    }
+  ],
+  "limitations": "Fixtures test extraction validation, grounding and escalation, not real model extraction accuracy or provider latency. Live outputs are nondeterministic and depend on saved workspace provider/model and credentials."
+}

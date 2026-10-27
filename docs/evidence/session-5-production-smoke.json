@@ -1,0 +1,21 @@
+{
+  "mode": "host_nginx_compiled_spa_production_api_test_database",
+  "docker_runtime": false,
+  "https": false,
+  "nginx_syntax": "passed",
+  "routes": {
+    "/": {
+      "status": 200,
+      "security_headers": true
+    },
+    "/portfolio/deep-link": {
+      "status": 200,
+      "security_headers": true
+    },
+    "/api/v1/health/ready": {
+      "status": 200,
+      "security_headers": true
+    }
+  },
+  "limitations": "Host configuration substitutes loopback upstream, local asset root and port. TLS, container builds/runtime, public webhook delivery and live inference are not verified."
+}

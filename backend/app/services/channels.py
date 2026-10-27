@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import or_, select, update
 
 from app.core.database import SessionLocal
+from app.core.telemetry import record
 from app.integrations import meta
 from app.models.entities import (
     ChannelContact as Contact,
@@ -357,7 +358,14 @@ async def qualify(event_id):
                 or contact.opted_out
             ) and not (OPTOUT.search(envelope["text"]) or HUMAN.search(envelope["text"])):
                 event.status = "done"
+                event.processed_at = now()
                 db.commit()
+                record(
+                    "qualification_job",
+                    receipt_id=event.id,
+                    workspace_id=event.workspace_id,
+                    status=event.status,
+                )
                 return
             plan = await process_incoming_message(
                 db,
@@ -393,7 +401,11 @@ async def qualify(event_id):
                     None,
                 )
             event.status, event.error = "done", ""
+            event.processed_at = now()
             db.commit()
+            record(
+                "qualification_job", receipt_id=event.id, workspace_id=event.workspace_id, status=event.status
+            )
         except Exception as exc:
             db.rollback()
             event = db.get(Event, event_id)
@@ -401,12 +413,20 @@ async def qualify(event_id):
             from app.ai.providers import ProviderError
 
             event.status = "failed"
+            event.processed_at = now()
             event.error = (
                 exc.code
                 if isinstance(exc, ProviderError)
                 else "qualification_failed_review_settings_or_rules"
             )
             db.commit()
+            record(
+                "qualification_job",
+                receipt_id=event.id,
+                workspace_id=event.workspace_id,
+                status=event.status,
+                error=event.error,
+            )
 
 
 async def dispatch(message_id):
@@ -548,7 +568,17 @@ async def run_once():
             except Exception:
                 event = db.get(Event, identity)
                 event.status, event.error = "failed", "ingestion_failed_check_contact_or_mapping"
+            if event.status in {"done", "cancelled", "failed"}:
+                event.processed_at = now()
             db.commit()
+            record(
+                "intake_job",
+                receipt_id=event.id,
+                workspace_id=event.workspace_id,
+                status=event.status,
+                attempts=event.attempts,
+                error=event.error,
+            )
     with SessionLocal() as db:
         identity = db.scalar(
             select(Event.id).where(Event.status == "qualify").order_by(Event.received_at).limit(1)

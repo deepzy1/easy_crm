@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.telemetry import record
 from app.core.security import admin, limiter, member
 from app.integrations import meta
 from app.models.entities import (
@@ -230,6 +231,7 @@ def retry(ws: UUID, delivery_id: UUID, membership=Depends(admin), db: Session = 
             409, "Only failed deliveries can be retried; processing jobs require worker recovery"
         )
     event.status = "qualify" if event.envelope.get("thread_id") else "pending"
+    event.processed_at = None
     event.available_at, event.error = now(), ""
     db.commit()
     return {"status": event.status, "detail": "Explicit retry may make a paid inference request"}
@@ -237,7 +239,7 @@ def retry(ws: UUID, delivery_id: UUID, membership=Depends(admin), db: Session = 
 
 @router.post("/webhooks/forms/{integration_id}", status_code=202)
 async def website_callback(integration_id: UUID, request: Request, db: Session = Depends(get_db)):
-    row = webhooks.get_integration(db, integration_id, active=True)
+    row = webhooks.get_integration(db, integration_id, active=True, lock="key_share")
     if row.kind != "website":
         raise HTTPException(404, "Website integration not found")
     try:
@@ -249,6 +251,13 @@ async def website_callback(integration_id: UUID, request: Request, db: Session =
         raise
     webhooks.log(db, row, result["status"])
     db.commit()
+    record(
+        "webhook_receipt",
+        request_id=request.state.request_id,
+        receipt_id=result["delivery_id"],
+        workspace_id=row.workspace_id,
+        status=result["status"],
+    )
     return result
 
 
@@ -272,7 +281,7 @@ def meta_challenge(integration_id: UUID, request: Request, db: Session = Depends
 
 @router.post("/webhooks/meta/{integration_id}")
 async def meta_callback(integration_id: UUID, request: Request, db: Session = Depends(get_db)):
-    row = webhooks.get_integration(db, integration_id, active=True)
+    row = webhooks.get_integration(db, integration_id, active=True, lock="key_share")
     if row.kind == "website":
         raise HTTPException(404, "Meta integration not found")
     limiter.check(f"webhook:{row.id}", 300, 60)
@@ -298,6 +307,14 @@ async def meta_callback(integration_id: UUID, request: Request, db: Session = De
         raise
     webhooks.log(db, row, "accepted" if results else "ignored_unsupported_or_unmapped")
     db.commit()
+    for result in results:
+        record(
+            "webhook_receipt",
+            request_id=request.state.request_id,
+            receipt_id=result["delivery_id"],
+            workspace_id=row.workspace_id,
+            status=result["status"],
+        )
     return {"status": "accepted", "events": len(results)}
 
 
@@ -406,6 +423,7 @@ def recover(ws: UUID, membership=Depends(admin), db: Session = Depends(get_db)):
         .with_for_update(skip_locked=True)
     ):
         event.status, event.error = "failed", "worker_interrupted_review_before_paid_retry"
+        event.processed_at = now()
         recovered += 1
     for message in db.scalars(
         select(Message)

@@ -34,7 +34,13 @@ def get_integration(db, integration_id, ws=None, active=False, lock=False):
     query = select(Integration).where(Integration.id == str(integration_id))
     if ws is not None:
         query = query.where(Integration.workspace_id == str(ws))
-    row = db.scalar(query.with_for_update() if lock else query)
+    if lock == "key_share":
+        # Serialize against explicit integration deactivation/erasure (FOR UPDATE),
+        # while remaining compatible with the dispatcher's NO KEY UPDATE policy lock.
+        query = query.with_for_update(read=True, key_share=True)
+    elif lock:
+        query = query.with_for_update()
+    row = db.scalar(query)
     if not row or (active and not row.active):
         raise HTTPException(404, "Integration not found or inactive")
     return row

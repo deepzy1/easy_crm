@@ -9,11 +9,13 @@ from datetime import timedelta
 from sqlalchemy import delete, select
 
 from app.core.database import SessionLocal
-from app.models.entities import InboundEvent, WebhookLog, now
+from app.models.entities import AuthSession, InboundEvent, RateLimitBucket, WebhookLog, now
 
 
 def purge(db):
     cutoff = now() - timedelta(days=30)
+    db.execute(delete(RateLimitBucket).where(RateLimitBucket.expires_at < now()))
+    db.execute(delete(AuthSession).where(AuthSession.expires_at < now()))
     db.execute(delete(WebhookLog).where(WebhookLog.created_at < cutoff))
     for event in db.scalars(
         select(InboundEvent).where(

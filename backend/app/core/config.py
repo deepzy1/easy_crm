@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://easycrm:easycrm@localhost:5432/easycrm"
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
     cookie_secure: bool = False
+    environment: str = Field(default="development", pattern=r"^(development|production)$")
+    require_worker_ready: bool = False
     session_ttl_seconds: int = 3600
     gemini_api_key: SecretStr = SecretStr("")
     nvidia_api_key: SecretStr = SecretStr("")
@@ -26,7 +28,7 @@ class Settings(BaseSettings):
         "nvidia/nemotron-3-ultra-550b-a55b",
         "nvidia/llama-3.3-nemotron-super-49b-v1.5",
     ]
-    ai_timeout_seconds: float = 60
+    ai_timeout_seconds: float = Field(default=60, gt=0, le=120)
     ai_models_cache_seconds: int = 300
     webhook_master_key: SecretStr = SecretStr("")
     meta_connections: dict[str, MetaConnection] = {}

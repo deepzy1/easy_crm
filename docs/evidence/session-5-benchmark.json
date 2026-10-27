@@ -1,0 +1,18 @@
+{
+  "mode": "serial_in_process_testclient_real_postgresql",
+  "python": "3.12.3",
+  "crud_list": {
+    "samples": 30,
+    "mean_ms": 13.44,
+    "p95_ms": 15.69,
+    "serial_requests_per_second": 74.39
+  },
+  "signed_webhook_acceptance": {
+    "samples": 30,
+    "mean_ms": 16.92,
+    "p95_ms": 18.83,
+    "serial_requests_per_second": 59.11
+  },
+  "inference": "not executed",
+  "limitations": "30 sequential requests per operation, one workspace and one lead, warm local database. Excludes TCP, TLS, proxy, concurrency, AI and external delivery. Not production throughput."
+}

@@ -30,14 +30,7 @@ import {
 } from "lucide-react";
 import { api, initials } from "./api";
 import type { Overview, Stage, User, Workspace } from "./api";
-import {
-  Avatar,
-  Button,
-  ErrorBox,
-  FuturePage,
-  Loading,
-  Modal,
-} from "./components/ui";
+import { Avatar, Button, ErrorBox, Loading, Modal } from "./components/ui";
 import {
   DashboardBottom,
   DashboardMetrics,
@@ -46,6 +39,8 @@ import {
 import { Settings } from "./AI";
 import { Qualification } from "./Qualification";
 import { ChannelInbox, Integrations } from "./Channels";
+import { Knowledge } from "./Knowledge";
+import { Analytics } from "./Analytics";
 
 const navigation = [
   { name: "Dashboard", icon: House },
@@ -657,6 +652,8 @@ function WorkspaceShell({
                 setLeadSearch(lead.name);
               }}
             />
+          ) : page === "Analytics" ? (
+            <Analytics key={base} base={base} />
           ) : ["Dashboard", "Leads", "Pipeline", "Analytics"].includes(page) ? (
             <>
               <div className="page-title">
@@ -766,18 +763,14 @@ function WorkspaceShell({
               }}
             />
           ) : page === "Knowledge Base" ? (
-            <FuturePage
-              name="Give your AI a little context."
-              description="Your company’s website pages, documents, and trusted knowledge will live here. Source review, scoped retrieval, and grounded answers are planned for a future session."
-              icon={<BookOpen size={32} />}
-            />
+            <Knowledge key={base} base={base} />
           ) : (
             <Integrations key={base} base={base} />
           )}
           <footer className="main-footer">
             <span>Made for meaningful connections.</span>
             <span>
-              EasyCRM <span>·</span> Session 4
+              EasyCRM <span>·</span> Session 5
             </span>
           </footer>
         </main>

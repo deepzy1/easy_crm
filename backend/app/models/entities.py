@@ -155,7 +155,7 @@ class QualificationTemplate(Base):
 
 
 class KnowledgeText(Base):
-    """Reviewed text only; no remote fetches or uploads in Session 3."""
+    """Shared reviewed text store for manual, website and PDF sources."""
 
     __tablename__ = "qualification_knowledge"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
@@ -163,6 +163,35 @@ class KnowledgeText(Base):
     title: Mapped[str] = mapped_column(String(150))
     text: Mapped[str] = mapped_column(Text)
     approved: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    kind: Mapped[str] = mapped_column(String(20), default="text", server_default="text")
+    origin: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    state: Mapped[str] = mapped_column(String(30), default="ready", server_default="ready")
+    error: Mapped[str] = mapped_column(String(300), default="", server_default="")
+
+
+class RateLimitBucket(Base):
+    __tablename__ = "rate_limit_buckets"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    window_start: Mapped[int] = mapped_column(Integer, primary_key=True)
+    count: Mapped[int] = mapped_column(Integer)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class WorkerHeartbeat(Base):
+    __tablename__ = "worker_heartbeats"
+    name: Mapped[str] = mapped_column(String(50), primary_key=True)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PrivacyAudit(Base):
+    __tablename__ = "privacy_audits"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    actor_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    action: Mapped[str] = mapped_column(String(30))
+    # Opaque erased subject ID only; no copied identity, messages or reason free text.
+    subject_id: Mapped[str] = mapped_column(String(36))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
@@ -294,6 +323,7 @@ class InboundEvent(Base):
     error: Mapped[str] = mapped_column(String(300), default="")
     available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     __table_args__ = (
         ForeignKeyConstraint(
             ["workspace_id", "integration_id"],

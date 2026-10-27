@@ -33,9 +33,7 @@ def signed_headers(secret, event_id, raw, timestamp=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", required=True, help="Full generated webhook URL")
-    parser.add_argument(
-        "--event-id", required=True, help="Stable ID; reuse on redelivery"
-    )
+    parser.add_argument("--event-id", required=True, help="Stable ID; reuse on redelivery")
     parser.add_argument("--body-file", type=Path, required=True)
     args = parser.parse_args()
     secret = os.environ.get("EASYCRM_WEBHOOK_SECRET", "")

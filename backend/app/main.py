@@ -1,6 +1,8 @@
 import json
 import logging
 import time
+import re
+from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -11,22 +13,46 @@ from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
 from app.ai.providers import ProviderError
-from app.api import ai, auth, channels, crm, qualification
+from app.api import ai, auth, channels, crm, knowledge, operations, qualification
 from app.core.config import get_settings
-from app.core.database import SessionLocal
+from app.core.database import SessionLocal, engine
+from app.services.operations import readiness
 
 logger = logging.getLogger("easycrm")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
-app = FastAPI(title="EasyCRM", version="0.4.0", description="CRM, qualification, signed channels and inbox")
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app):
+    if settings.environment == "production":
+        if len(settings.webhook_master_key.get_secret_value()) < 32:
+            raise RuntimeError("Production requires a stable WEBHOOK_MASTER_KEY of at least 32 characters")
+        if not settings.cookie_secure or any(not x.startswith("https://") for x in settings.cors_origins):
+            raise RuntimeError("Production requires secure cookies and HTTPS CORS origins")
+        # Worker readiness is checked by the endpoint after the worker starts.
+        status = readiness()
+        if status.get("schema") != "current":
+            raise RuntimeError("Database unavailable or migrations required; run alembic upgrade head")
+    yield
+    engine.dispose()
+
+
+app = FastAPI(
+    title="EasyCRM",
+    version="0.5.0",
+    description="CRM, reviewed knowledge, qualification, channels and operational analytics",
+    lifespan=lifespan,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
+    expose_headers=["X-Request-ID"],
 )
 
 
@@ -49,20 +75,29 @@ async def security_and_logging(request: Request, call_next):
     request.state.request_id = str(uuid4())
     start = time.monotonic()
     origin = request.headers.get("origin")
+    response = None
     if request.method not in ("GET", "HEAD", "OPTIONS"):
         # Cookie authentication requires a trusted browser Origin. CLI Bearer clients need no Origin.
         if (origin and origin not in settings.cors_origins) or (
             request.cookies.get("easycrm_session") and not origin and not request.headers.get("authorization")
         ):
-            return error(request, 403, "origin_rejected", "Request origin is not allowed")
-        body = bytearray()
-        async for chunk in request.stream():
-            body.extend(chunk)
-            if len(body) > 65536:
-                return error(request, 413, "body_too_large", "Request body is too large")
-        request._body = bytes(body)
+            response = error(request, 403, "origin_rejected", "Request origin is not allowed")
+        if response is None:
+            limit = (
+                2 * 1024 * 1024
+                if re.fullmatch(r"/api/v1/workspaces/[0-9a-f-]{36}/knowledge/uploads", request.url.path)
+                else 65536
+            )
+            body = bytearray()
+            async for chunk in request.stream():
+                body.extend(chunk)
+                if len(body) > limit:
+                    response = error(request, 413, "body_too_large", "Request body is too large")
+                    break
+            request._body = bytes(body)
     try:
-        response = await call_next(request)
+        if response is None:
+            response = await call_next(request)
     except Exception:
         # Never log exception messages, request bodies, headers, query strings, or provider responses.
         logger.error(json.dumps({"event": "request_failed", "request_id": request.state.request_id}))
@@ -118,5 +153,24 @@ def health():
         return JSONResponse(status_code=503, content={"status": "unavailable", "database": "disconnected"})
 
 
-for router in (auth.router, crm.router, ai.router, qualification.router, channels.router):
+@app.get("/api/v1/health/live", tags=["Health"])
+def live():
+    return {"status": "ok"}
+
+
+@app.get("/api/v1/health/ready", tags=["Health"])
+def ready():
+    status = readiness()
+    return JSONResponse(status_code=200 if status["status"] == "ok" else 503, content=status)
+
+
+for router in (
+    auth.router,
+    crm.router,
+    ai.router,
+    qualification.router,
+    channels.router,
+    knowledge.router,
+    operations.router,
+):
     app.include_router(router, prefix="/api/v1")

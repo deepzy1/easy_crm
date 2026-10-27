@@ -14,7 +14,6 @@ from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import delete  # noqa: E402
 from app.core.database import Base, SessionLocal, engine  # noqa: E402
-from app.core.security import limiter  # noqa: E402
 from app.main import app  # noqa: E402
 
 
@@ -31,7 +30,6 @@ def clean_database(migrated_database):
         for table in reversed(Base.metadata.sorted_tables):
             db.execute(delete(table))
         db.commit()
-    limiter.events.clear()
     from app.ai.catalogue import catalogue
 
     catalogue.clear()

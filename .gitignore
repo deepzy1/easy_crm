@@ -24,3 +24,5 @@ coverage/
 Thumbs.db
 test-results/
 playwright-report/
+backups/
+*.dump
