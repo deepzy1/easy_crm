@@ -43,6 +43,18 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+  channel-worker:
+    build:
+      context: .
+      dockerfile: infrastructure/backend.Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-easycrm}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-easycrm}
+    command: ["python", "-m", "app.channel_worker"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
   frontend:
     build:
       context: .

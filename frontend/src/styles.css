@@ -4849,3 +4849,151 @@ tr:hover td {
     padding: 12px;
   }
 }
+
+/* Session 4 channels reuse the white canvas, restrained borders and blue accent. */
+.channels-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 0;
+}
+.channels-heading,
+.channel-card-title,
+.channel-actions,
+.channel-conversation > header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.channels-heading {
+  margin-bottom: 24px;
+}
+.channels-page h2,
+.channels-page h3 {
+  margin: 0 0 8px;
+}
+.channels-page p {
+  color: #596579;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.channel-notice {
+  background: #eff6ff;
+  padding: 14px 18px;
+  border-radius: 8px;
+}
+.channel-card {
+  border: 1px solid #e5e7eb;
+  padding: 22px;
+  border-radius: 10px;
+  margin: 18px 0;
+  min-width: 0;
+}
+.channels-page label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 12px 0;
+}
+.channel-form {
+  max-width: 660px;
+}
+.channel-secret {
+  display: block;
+  padding: 16px;
+  background: #f8fafc;
+  overflow-wrap: anywhere;
+  margin: 16px 0;
+}
+.channel-deliveries article {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 14px 0;
+}
+.channel-inbox {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.channel-thread-list {
+  border-right: 1px solid #e5e7eb;
+  padding: 10px;
+}
+.channel-thread-list button {
+  background: white;
+  text-align: left;
+  width: 100%;
+  border: 0;
+  padding: 14px;
+  border-radius: 7px;
+  display: grid;
+  gap: 6px;
+  cursor: pointer;
+}
+.channel-thread-list button.selected {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.channel-thread-list span {
+  font-size: 12px;
+}
+.channel-conversation {
+  padding: 22px;
+  min-width: 0;
+}
+.channel-message-list {
+  max-height: 540px;
+  overflow: auto;
+  padding: 18px 0;
+  margin: 18px 0;
+  border-block: 1px solid #e5e7eb;
+}
+.channel-message {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+  margin: 12px 0;
+  max-width: 90%;
+}
+.channel-message.outbound {
+  background: #eff6ff;
+  margin-left: auto;
+}
+.channel-message.system {
+  background: white;
+  border-style: dashed;
+}
+.channel-message p {
+  white-space: pre-wrap;
+  color: #172033;
+}
+.channel-message small {
+  font-size: 11px;
+  color: #596579;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .channel-inbox {
+    grid-template-columns: 1fr;
+  }
+  .channel-thread-list {
+    border-right: 0;
+    border-bottom: 1px solid #e5e7eb;
+    max-height: 210px;
+    overflow: auto;
+  }
+  .channel-card,
+  .channel-conversation {
+    padding: 16px;
+  }
+  .channels-page {
+    padding-top: 12px;
+  }
+}

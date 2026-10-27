@@ -1,0 +1,92 @@
+{
+  "verified_on": "2026-10-27",
+  "scope": "Session 4 channels on the existing Session 1/3 monolith",
+  "backend": {
+    "result": "passed",
+    "passed": 132,
+    "failed": 0,
+    "duration_seconds": 23.77,
+    "database": "Isolated disposable PostgreSQL 16 on loopback port 55434; easycrm_channels_test",
+    "providers": "External inference and Meta requests mocked only in explicit tests",
+    "warnings": [
+      "Existing Starlette/httpx TestClient deprecation warning"
+    ],
+    "checks": [
+      "Raw website HMAC, timestamp expiry, exact-body duplicate/conflict, rate/size limits",
+      "Key rotation and revocation",
+      "Server-bound Meta account/workspace mapping, token non-disclosure",
+      "Cross-workspace HTTP and compound-FK isolation",
+      "Canonical channel qualification using saved model",
+      "Takeover during inference, queued cancellation, CRM takeover/resume",
+      "Concurrent intake and two competing dispatch workers",
+      "Webhook acceptance during an in-progress outbound HTTP call",
+      "Service-window expiry and sticky opt-out",
+      "Known rejection backoff, success after retry, ambiguous delivery without resend",
+      "Status correlation and monotonic read/delivery state",
+      "Contact enrichment and conflicting-identity rejection",
+      "Retention redaction preserving duplicate defense",
+      "Additive migration downgrade/reapply/preservation and Alembic drift check",
+      "Facebook lead retrieval and Instagram receive-only fixture contracts"
+    ]
+  },
+  "browser": {
+    "result": "passed",
+    "full_suite_passed": 10,
+    "full_suite_duration_seconds": 37.7,
+    "final_channel_case_passed": 1,
+    "final_channel_case_duration_seconds": 11.6,
+    "database": "Separate disposable easycrm_channels_browser_test",
+    "provider": "Explicit tests/browser_qualification.py fixture for successful Session 3 generation; channel browser test uses AI-disabled signed fictional website data",
+    "checks": [
+      "Create integration and secret displayed once",
+      "Fictional signed event through real API/database/worker",
+      "Message history and disabled website reply",
+      "Persisted AI/human controls and policy errors",
+      "Rotation, old secret hidden after reload",
+      "Desktop and settled mobile screenshots; no horizontal overflow",
+      "Existing CRM/auth/model/qualification browser regressions"
+    ],
+    "screenshots": [
+      "session-4-desktop.png",
+      "session-4-mobile.png"
+    ]
+  },
+  "static_checks": {
+    "ruff_check": "passed",
+    "ruff_format_check": "passed; 46 files",
+    "typescript_vite_build": "passed",
+    "prettier_check": "passed",
+    "alembic_check": "passed; no new upgrade operations",
+    "compose_config_quiet": "passed",
+    "git_diff_check": "passed",
+    "signing_client_help": "passed"
+  },
+  "migration": "01e3724d4b96",
+  "configuration": [
+    "WEBHOOK_MASTER_KEY",
+    "META_GRAPH_VERSION",
+    "META_CONNECTIONS"
+  ],
+  "live_verification": {
+    "whatsapp_receive_send_status_takeover": "not_verified_no_authorized_assets_configured",
+    "facebook_lead_ads": "fixture_only_permissions_unverified",
+    "instagram": "receive_only_fixture_permissions_unverified",
+    "gemini_nvidia_live_inference": "not_run_this_session",
+    "https_callback": "not_verified",
+    "running_application_database_migrated": false,
+    "docker_images_rebuilt": false,
+    "remote_ci": "not_run"
+  },
+  "known_limits": [
+    "Session 2 website/PDF ingestion absent",
+    "No outside-window template outreach or Instagram sending",
+    "Per-process throttling; production shared limits and load checks pending",
+    "Worker recovery and unknown sends require operator reconciliation",
+    "Daily channel-maintenance scheduling is an operator responsibility",
+    "Production hosting/backups/retention policy and broader multilingual opt-out evaluation remain pending"
+  ],
+  "git": {
+    "committed": false,
+    "pushed": false
+  }
+}

@@ -1,8 +1,17 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class MetaConnection(BaseModel):
+    workspace_id: str
+    kind: str = Field(pattern=r"^(whatsapp|meta_leads|instagram)$")
+    external_account_id: str = Field(pattern=r"^[0-9]{1,50}$")
+    app_secret: SecretStr
+    verify_token: SecretStr
+    access_token: SecretStr
 
 
 class Settings(BaseSettings):
@@ -19,6 +28,9 @@ class Settings(BaseSettings):
     ]
     ai_timeout_seconds: float = 60
     ai_models_cache_seconds: int = 300
+    webhook_master_key: SecretStr = SecretStr("")
+    meta_connections: dict[str, MetaConnection] = {}
+    meta_graph_version: str = Field(default="v25.0", pattern=r"^v[0-9]{1,3}\.0$")
 
     @field_validator("nvidia_models")
     @classmethod

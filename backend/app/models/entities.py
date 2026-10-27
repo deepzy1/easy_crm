@@ -215,3 +215,135 @@ class QualificationEvent(Base):
         UniqueConstraint("workspace_id", "channel", "external_message_id"),
         Index("ix_qualification_events_timeline", "workspace_id", "conversation_id", "created_at", "id"),
     )
+
+
+class Integration(Base):
+    __tablename__ = "integrations"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(100))
+    kind: Mapped[str] = mapped_column(String(30))
+    credential_alias: Mapped[str] = mapped_column(String(100), default="")
+    external_account_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    ai_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    key_version: Mapped[int] = mapped_column(Integer, default=1)
+    field_map: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "id"),
+        UniqueConstraint("kind", "external_account_id"),
+    )
+
+
+class ChannelContact(Base):
+    __tablename__ = "channel_contacts"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    workspace_id: Mapped[str] = mapped_column(String(36))
+    lead_id: Mapped[str] = mapped_column(String(36))
+    identity: Mapped[str] = mapped_column(String(320))
+    consent_to_contact: Mapped[bool] = mapped_column(Boolean, default=False)
+    opted_out: Mapped[bool] = mapped_column(Boolean, default=False)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "lead_id"], ["leads.workspace_id", "leads.id"], ondelete="CASCADE"
+        ),
+        UniqueConstraint("workspace_id", "identity"),
+        UniqueConstraint("workspace_id", "id"),
+    )
+
+
+class ChannelThread(Base):
+    __tablename__ = "channel_threads"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    workspace_id: Mapped[str] = mapped_column(String(36))
+    integration_id: Mapped[str] = mapped_column(String(36))
+    contact_id: Mapped[str] = mapped_column(String(36))
+    external_contact_id: Mapped[str] = mapped_column(String(200))
+    mode: Mapped[str] = mapped_column(String(10), default="human")
+    control_version: Mapped[int] = mapped_column(Integer, default=0)
+    last_inbound_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "integration_id"],
+            ["integrations.workspace_id", "integrations.id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "contact_id"],
+            ["channel_contacts.workspace_id", "channel_contacts.id"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("workspace_id", "integration_id", "external_contact_id"),
+        UniqueConstraint("workspace_id", "id"),
+    )
+
+
+class InboundEvent(Base):
+    __tablename__ = "channel_inbound_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    workspace_id: Mapped[str] = mapped_column(String(36))
+    integration_id: Mapped[str] = mapped_column(String(36))
+    external_event_id: Mapped[str] = mapped_column(String(200))
+    payload_hash: Mapped[str] = mapped_column(String(64))
+    # Minimized normalized envelope, never the raw Meta/form request.
+    envelope: Mapped[dict] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(30), default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str] = mapped_column(String(300), default="")
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "integration_id"],
+            ["integrations.workspace_id", "integrations.id"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("integration_id", "external_event_id"),
+        Index("ix_channel_inbound_due", "status", "available_at"),
+    )
+
+
+class ChannelMessage(Base):
+    __tablename__ = "channel_messages"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    workspace_id: Mapped[str] = mapped_column(String(36))
+    thread_id: Mapped[str] = mapped_column(String(36))
+    dedupe_key: Mapped[str] = mapped_column(String(200))
+    external_message_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    actor_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    direction: Mapped[str] = mapped_column(String(10))
+    text: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(30))
+    ai_generated: Mapped[bool] = mapped_column(Boolean, default=False)
+    control_version: Mapped[int] = mapped_column(Integer, default=0)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str] = mapped_column(String(300), default="")
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "thread_id"],
+            ["channel_threads.workspace_id", "channel_threads.id"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("workspace_id", "dedupe_key"),
+        Index("ix_channel_outbox_due", "status", "available_at"),
+    )
+
+
+class WebhookLog(Base):
+    __tablename__ = "channel_webhook_logs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    workspace_id: Mapped[str] = mapped_column(String(36))
+    integration_id: Mapped[str] = mapped_column(String(36))
+    result: Mapped[str] = mapped_column(String(40))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "integration_id"],
+            ["integrations.workspace_id", "integrations.id"],
+            ondelete="CASCADE",
+        ),
+    )

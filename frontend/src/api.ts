@@ -96,6 +96,7 @@ export const sources = [
   "whatsapp",
   "linkedin",
   "meta",
+  "instagram",
 ];
 export const statuses = [
   "new",
@@ -111,6 +112,7 @@ export const label = (s: string) =>
     linkedin: "LinkedIn",
     website: "Web form",
     meta: "Meta",
+    instagram: "Instagram",
     "needs-human": "Needs human",
   })[s] || s.charAt(0).toUpperCase() + s.slice(1);
 export const money = (value: string | number) =>

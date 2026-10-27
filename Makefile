@@ -1,4 +1,4 @@
-.PHONY: install migrate seed backend frontend test build
+.PHONY: install migrate seed backend frontend test build channel-worker channel-maintenance
 install:
 	python3 -m venv backend/.venv
 	backend/.venv/bin/pip install --require-hashes -r backend/requirements-dev.lock
@@ -16,3 +16,8 @@ test:
 	cd backend && .venv/bin/pytest -q
 build:
 	cd frontend && npm run build
+
+channel-worker:
+	cd backend && .venv/bin/python -m app.channel_worker
+channel-maintenance:
+	cd backend && .venv/bin/python -m app.channel_maintenance

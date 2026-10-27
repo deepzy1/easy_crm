@@ -45,6 +45,7 @@ import {
 } from "./LeadWorkspace";
 import { Settings } from "./AI";
 import { Qualification } from "./Qualification";
+import { ChannelInbox, Integrations } from "./Channels";
 
 const navigation = [
   { name: "Dashboard", icon: House },
@@ -756,10 +757,13 @@ function WorkspaceShell({
               )}
             </>
           ) : page === "Inbox" ? (
-            <FuturePage
-              name="Every conversation, connected."
-              description="A shared home for customer conversations, with message history and human takeover. WhatsApp connectivity is planned for a future session; no channels are connected yet."
-              icon={<Inbox size={32} />}
+            <ChannelInbox
+              key={base}
+              base={base}
+              onViewLead={(name) => {
+                navigate("Leads");
+                setLeadSearch(name);
+              }}
             />
           ) : page === "Knowledge Base" ? (
             <FuturePage
@@ -768,16 +772,12 @@ function WorkspaceShell({
               icon={<BookOpen size={32} />}
             />
           ) : (
-            <FuturePage
-              name="Better, together."
-              description="Connect your website forms and messaging channels to bring new relationships into EasyCRM. Signed webhooks, WhatsApp, and other connectors are planned; no live integrations are enabled."
-              icon={<Plug size={32} />}
-            />
+            <Integrations key={base} base={base} />
           )}
           <footer className="main-footer">
             <span>Made for meaningful connections.</span>
             <span>
-              EasyCRM <span>·</span> Session 3
+              EasyCRM <span>·</span> Session 4
             </span>
           </footer>
         </main>
@@ -801,8 +801,9 @@ function WorkspaceShell({
             </p>
             <p>
               Use AI Qualification to configure rules, simulate a prospect
-              conversation and review its score and evidence. Inbox, website/PDF
-              ingestion and live messaging are planned for future sessions.
+              conversation and review its score and evidence. Integrations
+              connects signed forms and configured WhatsApp accounts; Inbox
+              supports human takeover. Website/PDF ingestion remains planned.
             </p>
             <Button variant="primary" onClick={() => setHelp(false)}>
               Got it <Check size={15} />

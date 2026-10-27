@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator
 
 Status = Literal["new", "qualifying", "qualified", "needs-human", "disqualified", "closed"]
-Source = Literal["manual", "website", "email", "referral", "whatsapp", "linkedin", "meta"]
+Source = Literal["manual", "website", "email", "referral", "whatsapp", "linkedin", "meta", "instagram"]
 Provider = Literal["gemini", "nvidia"]
 
 

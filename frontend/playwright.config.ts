@@ -23,6 +23,9 @@ export default defineConfig({
       url: `http://127.0.0.1:${backendPort}/api/v1/health`,
       reuseExistingServer: !process.env.CI,
       env: {
+        WEBHOOK_MASTER_KEY:
+          "fictional-browser-test-master-key-never-use-in-deployment",
+        META_CONNECTIONS: "{}",
         GEMINI_API_KEY: "",
         NVIDIA_API_KEY: "",
         CORS_ORIGINS: JSON.stringify([

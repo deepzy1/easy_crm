@@ -141,12 +141,12 @@ def save_template(db, ws, body: TemplateInput):
     return template
 
 
-def conversation_for(db, ws, lead, channel="simulator", create=False):
+def conversation_for(db, ws, lead, channel="simulator", create=False, share=False):
     conversation = db.scalar(
         select(Conversation).where(
             Conversation.workspace_id == str(ws),
             Conversation.lead_id == lead.id,
-            Conversation.channel == channel,
+            True if share else Conversation.channel == channel,
         )
     )
     if not conversation and create:
@@ -272,7 +272,7 @@ def event(db, conversation, kind, payload, actor=None, **extra):
     row = Event(
         workspace_id=conversation.workspace_id,
         conversation_id=conversation.id,
-        channel=conversation.channel,
+        channel=extra.pop("channel", conversation.channel),
         kind=kind,
         payload=payload,
         actor_id=actor,
@@ -362,7 +362,15 @@ def validate_fields(extraction, rules, previous, text, message_id):
 
 
 async def process_incoming_message(
-    db, workspace_id, lead_id, channel, external_message_id, text, timestamp, actor_id=None
+    db,
+    workspace_id,
+    lead_id,
+    channel,
+    external_message_id,
+    text,
+    timestamp,
+    actor_id=None,
+    share_conversation=False,
 ):
     """Caller commits only after success; channel adapters must verify origin/consent.
 
@@ -389,7 +397,7 @@ async def process_incoming_message(
         if receipt.payload_hash != digest:
             raise HTTPException(409, "External message ID was already used for different content")
         return ActionPlan.model_validate({**receipt.payload["plan"], "duplicate": True})
-    conversation = conversation_for(db, ws, lead, channel, create=True)
+    conversation = conversation_for(db, ws, lead, channel, create=True, share=share_conversation)
     template = db.scalar(
         select(Template).where(Template.workspace_id == ws, Template.id == conversation.template_id)
     )
@@ -501,6 +509,7 @@ async def process_incoming_message(
         actor_id,
         external_message_id=external_message_id,
         payload_hash=digest,
+        channel=channel,
     )
     db.flush()
     return plan

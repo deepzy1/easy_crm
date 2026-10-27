@@ -4,7 +4,7 @@
 
 EasyCRM helps a business capture inbound leads, answer questions using verified company knowledge, qualify interested prospects through structured conversations, and hand off sales-ready opportunities to a human team.
 
-> Status: **Sessions 1 and 3 implemented** — authenticated CRM, AI settings/playground, versioned qualification rules, evidence-backed extraction, deterministic scoring, simulator, and human control. Session 2 website/PDF ingestion is absent in this checkout; reviewed business text is supported as a bounded grounding source. Signed webhooks and live messaging remain future work. See [Session 3 handoff](docs/SESSION_3_HANDOFF.md) for scope and verification limits.
+> Status: **Sessions 1, 3 and 4 implemented locally** — authenticated CRM, configurable AI, versioned qualification, signed website webhooks, durable channel worker, official WhatsApp adapter and shared Inbox. Meta/AI success is fixture-verified; live receive/send and permissions remain unverified. Session 2 website/PDF ingestion is absent; reviewed business text remains available. See [Session 4 handoff](docs/SESSION_4_HANDOFF.md) for setup, verification boundaries and next-session gaps.
 
 ## Product principles
 
@@ -213,9 +213,19 @@ If Chrome is installed locally, the tests also accept `PLAYWRIGHT_CHROMIUM_EXECU
 - Configurable Gemini/NVIDIA adapters, credential-presence flags, per-workspace model preferences, connection testing, real-call playground, usage/latency where supplied, and sanitized failure states.
 - Alembic migrations, explicit demo seed, Docker development configuration, dependency locks, backend/browser tests, and CI workflow.
 
+### Session 4 channel setup
+
+Run `make migrate` for additive revision `01e3724d4b96`. Set a stable random `WEBHOOK_MASTER_KEY` (at least 32 characters) in the backend `.env`, restart the API, and run `make channel-worker` in a separate terminal. Docker Compose includes the worker; use `docker compose up -d --build` to rebuild code-baked images. Never replace your existing `.env` with the example.
+
+Open **Integrations**, create a website integration and save the once-displayed signing secret on your trusted website backend. **Queue fictional test** exercises real signed intake and processing; accepted means durably queued. Inbox shows messages once the worker processes them. Qualification defaults off; enable it only after activating rules and saving a working provider/model. Website leads are never messaged externally.
+
+WhatsApp uses workspace-bound `META_CONNECTIONS` environment credentials and the generated HTTPS callback URL. Inbox supports text replies, delivery status, reasoned human takeover and explicit AI resumption. The worker rechecks control state, opt-out and the 24-hour customer-service window before sending. Outside-window template outreach is unavailable. Facebook Lead Ads and receive-only Instagram adapters have fixture tests; app permissions/live delivery are unverified. Exact callbacks, permission setup, failure/retry semantics, HTML form, signing/cURL samples and operator commands are in [SESSION_4_HANDOFF.md](docs/SESSION_4_HANDOFF.md).
+
+Run `make channel-maintenance` daily to redact old minimized intake payloads and prune request logs. No raw webhook bodies or Meta tokens are stored. Messages and qualification/CRM history persist until scoped lead deletion; production subject-retention policy remains pending.
+
 ### Future sessions and current limits
 
-Inbox, the full Knowledge Base, and Integrations remain future pages. Signed form webhooks, separate contacts, assignment/invitations, website/PDF ingestion, embeddings/vector retrieval, WhatsApp, automation, billing, and voice are not implemented. Session 3 adds reviewed-text retrieval, deterministic scoring and qualification-specific audit timelines; there is no general CRM event timeline yet. Source labels on leads are attribution only; they do not activate connectors. Pipeline stage and qualification status are independent fields. CRM monetary values use USD; the opt-in furniture rubric asks for INR and does not convert currencies. Metrics cover all time.
+Full Knowledge Base ingestion, general contact management, assignment/invitations, embeddings/vector retrieval, template outreach, Instagram sending, automation, billing, and voice remain pending. Session 3 adds reviewed-text retrieval, deterministic scoring and qualification-specific audit timelines. Session 4 adds the durable channel inbox/outbox and integration delivery logs; live Meta credentials, webhook reachability and app approvals still need verification. Pipeline stage and qualification status are independent fields. CRM monetary values use USD; the opt-in furniture rubric asks for INR and does not convert currencies. Metrics cover all time.
 
 This is a tested local foundation, not a production-readiness claim. Production deployment still requires HTTPS, secure cookies, a production SPA/reverse proxy, shared rate limiting, backups/retention, monitoring, and deployment-specific review. Authentication and AI request throttling are per process. There is no password reset, email verification, or membership-invitation UI yet.
 

@@ -10,6 +10,8 @@ from app.core.database import get_db
 from app.core.security import admin, member
 from app.models.entities import (
     KnowledgeText,
+    ChannelContact,
+    ChannelThread,
     QualificationConversation,
     QualificationEvent,
     QualificationTemplate,
@@ -134,6 +136,23 @@ def qualification_get(ws: UUID, lead_id: UUID, membership=Depends(member), db: S
 def control(
     ws: UUID, lead_id: UUID, body: Control, membership=Depends(member), db: Session = Depends(get_db)
 ):
+    from app.services.channels import cancel_ai
+
+    threads = db.scalars(
+        select(ChannelThread)
+        .join(
+            ChannelContact,
+            (ChannelContact.id == ChannelThread.contact_id)
+            & (ChannelContact.workspace_id == ChannelThread.workspace_id),
+        )
+        .where(ChannelThread.workspace_id == str(ws), ChannelContact.lead_id == str(lead_id))
+        .order_by(ChannelThread.id)
+        .with_for_update(of=ChannelThread)
+    ).all()
     result = control_conversation(db, ws, lead_id, body, membership.user_id)
+    for thread in threads:
+        thread.mode = result.mode
+        thread.control_version += 1
+        cancel_ai(db, ws, thread.id)
     db.commit()
     return result

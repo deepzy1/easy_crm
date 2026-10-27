@@ -189,7 +189,7 @@ test("mobile navigation and dialogs fit within the viewport", async ({
   await page.getByRole("button", { name: "Open navigation" }).click();
   await page.getByRole("button", { name: "Inbox", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Every conversation, connected." }),
+    page.getByRole("heading", { name: "Your shared inbox" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "About EasyCRM" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
