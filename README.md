@@ -4,7 +4,7 @@
 
 EasyCRM helps a business capture inbound leads, answer questions using verified company knowledge, qualify interested prospects through structured conversations, and hand off sales-ready opportunities to a human team.
 
-> Status: **Session 1 implemented** — authenticated workspaces, CRM, dashboard, and AI model settings/playground. The broader MVP below remains the roadmap; signed webhook acceptance and production qualification are future work. See [Session 1 implementation](docs/SESSION_1.md) for the precise delivered scope and verification limits.
+> Status: **Sessions 1 and 3 implemented** — authenticated CRM, AI settings/playground, versioned qualification rules, evidence-backed extraction, deterministic scoring, simulator, and human control. Session 2 website/PDF ingestion is absent in this checkout; reviewed business text is supported as a bounded grounding source. Signed webhooks and live messaging remain future work. See [Session 3 handoff](docs/SESSION_3_HANDOFF.md) for scope and verification limits.
 
 ## Product principles
 
@@ -79,7 +79,7 @@ EasyCRM/
 └── .github/workflows/       # CI (to build)
 ```
 
-## Session 1 — run locally
+## Run locally
 
 Run all commands from the application root, the directory containing this README and `compose.yaml`. In the supplied workspace that is `/home/deepak/Music/easy_crm/easy_crm` (the outer directory is a wrapper checkout).
 
@@ -163,7 +163,18 @@ uvicorn app.main:app --reload --port 8000 --no-access-log
 - `AI_MODELS_CACHE_SECONDS`: discovery cache TTL in seconds, default 300. **Refresh Models** bypasses it; successful model observations expire after 15 minutes. These bounded caches are per process; workspace preferences are durable in PostgreSQL.
 - `AI_TIMEOUT_SECONDS`: timeout per provider request, default 60 seconds. Generation is capped at 2,048 output tokens per request. No automatic retries or provider fallbacks.
 
-To use AI: add a provider key to `.env`, restart the backend, open **Settings → AI models**, select a provider/model, and click **Save as Default**. Changing the saved active model takes effect immediately, without a restart. **Refresh Models** retrieves metadata without generation. Search by name, exact ID, or family. **Test Model** sends one real request capped at 256 output tokens and may consume quota or incur charges. It never tests the entire catalogue. “Available” means listed; “Verified working” means a successful recent generation in this workspace. Rate-limited, access restricted, unavailable, and unknown states describe observations, not pricing. **Free-tier eligibility unverified** remains visible even after a successful test; the Models API does not establish account-specific free-tier eligibility. **AI Qualification** opens the text playground and uses the saved workspace default; it does not score leads or send messages to prospects.
+To use AI: add a provider key to `.env`, restart the backend, open **Settings → AI models**, select a provider/model, and click **Save as Default**. Changing the saved active model takes effect immediately, without a restart. **Refresh Models** retrieves metadata without generation. Search by name, exact ID, or family. **Test Model** sends one real request capped at 256 output tokens and may consume quota or incur charges. It never tests the entire catalogue. “Available” means listed; “Verified working” means a successful recent generation in this workspace. Rate-limited, access restricted, unavailable, and unknown states describe observations, not pricing. **Free-tier eligibility unverified** remains visible even after a successful test; the Models API does not establish account-specific free-tier eligibility. **AI Qualification** now opens the conversation simulator; the original text playground is retained in its **Text playground** tab. Both use the saved workspace model. Neither sends messages to prospects.
+
+### Session 3 qualification setup
+
+Run `make migrate` before starting the updated backend; the additive migration is `57002a21df59`. No new dependencies or environment variables are required. Existing data is preserved and no templates or example leads are installed automatically.
+
+1. In **AI Qualification → Qualification rules**, load the generic B2B or furniture example, edit questions/weights/rules, and **Save new rule version**. Weights must total 100. Only admins can edit or activate rules.
+2. In **Business sources**, add reviewed business text and explicitly approve it for retrieval. This is a text source editor; website/PDF ingestion is still pending. Only approved workspace sources can supply verbatim cited answers.
+3. In **Conversation simulator**, select a CRM lead or explicitly create a fictional sample lead. Type as a prospect. Successful turns persist the transcript, supported fields, audit changes, assessment and score on that lead. One real inference call is made per AI turn; missing credentials/provider failures are shown without automatic retries.
+4. Inspect missing facts, point breakdown, source quotes and control state. **View CRM lead** opens the filtered CRM list, whose details include evidence, timeline and a human decision override. The rule version stays pinned for existing conversations. Pipeline stages remain independent.
+
+Messages in human mode are saved without inference. Opt-out closes the conversation and blocks AI resumption. The simulator writes actual CRM records; use fictional sample leads for exercises. For state transitions, scoring semantics, evaluation cases and the channel-adapter contract, see [Session 3 handoff](docs/SESSION_3_HANDOFF.md).
 
 The NVIDIA catalogue includes `nvidia/nemotron-3-ultra-550b-a55b`, confirmed against [NVIDIA’s official API reference](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3-ultra-550b-a55b-infer). Account access, quota, model retirement, and pricing are provider-controlled. Gemini follows the [generateContent REST contract](https://ai.google.dev/api/generate-content); identifiers can be checked with [models.list](https://ai.google.dev/api/models). Credentials and raw provider errors are never returned or logged. Missing/invalid credentials, restricted access, billing restrictions, unavailable models, quota limits, invalid requests, network errors, timeouts, and empty responses have separate actionable errors. Raw errors are classified internally; only authored messages and numeric upstream HTTP status are exposed. No automatic generation retries or model fallbacks occur. Failed refresh retains a clearly marked stale catalogue, and saved Playground requests do not depend on successful discovery.
 
@@ -204,7 +215,7 @@ If Chrome is installed locally, the tests also accept `PLAYWRIGHT_CHROMIUM_EXECU
 
 ### Future sessions and current limits
 
-Inbox, Knowledge Base, and Integrations are clearly labeled future pages. Signed form webhooks, separate contacts, assignment/invitations, durable timelines, knowledge ingestion/RAG, deterministic lead scoring, WhatsApp, automation, billing, and voice are not implemented. Source labels on leads are attribution only; they do not activate connectors. Pipeline stage and qualification status are independent fields. Values currently use USD; metrics cover all time.
+Inbox, the full Knowledge Base, and Integrations remain future pages. Signed form webhooks, separate contacts, assignment/invitations, website/PDF ingestion, embeddings/vector retrieval, WhatsApp, automation, billing, and voice are not implemented. Session 3 adds reviewed-text retrieval, deterministic scoring and qualification-specific audit timelines; there is no general CRM event timeline yet. Source labels on leads are attribution only; they do not activate connectors. Pipeline stage and qualification status are independent fields. CRM monetary values use USD; the opt-in furniture rubric asks for INR and does not convert currencies. Metrics cover all time.
 
 This is a tested local foundation, not a production-readiness claim. Production deployment still requires HTTPS, secure cookies, a production SPA/reverse proxy, shared rate limiting, backups/retention, monitoring, and deployment-specific review. Authentication and AI request throttling are per process. There is no password reset, email verification, or membership-invitation UI yet.
 

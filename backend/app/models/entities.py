@@ -8,6 +8,8 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    Boolean,
+    JSON,
     Numeric,
     String,
     Text,
@@ -84,6 +86,7 @@ class Lead(Base):
     status: Mapped[str] = mapped_column(String(30), default="new")
     value: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)
     summary: Mapped[str] = mapped_column(String(1000), default="")
+    qualification_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
     __table_args__ = (
@@ -133,4 +136,82 @@ class ModelPreference(Base):
             ["workspace_id", "provider"],
             ["ai_provider_configurations.workspace_id", "ai_provider_configurations.provider"],
         ),
+    )
+
+
+class QualificationTemplate(Base):
+    __tablename__ = "qualification_templates"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
+    version: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String(100))
+    rules: Mapped[dict] = mapped_column(JSON)
+    active: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "version"),
+        UniqueConstraint("workspace_id", "id"),
+    )
+
+
+class KnowledgeText(Base):
+    """Reviewed text only; no remote fetches or uploads in Session 3."""
+
+    __tablename__ = "qualification_knowledge"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(150))
+    text: Mapped[str] = mapped_column(Text)
+    approved: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class QualificationConversation(Base):
+    __tablename__ = "qualification_conversations"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    workspace_id: Mapped[str] = mapped_column(String(36))
+    lead_id: Mapped[str] = mapped_column(String(36))
+    template_id: Mapped[str] = mapped_column(String(36))
+    channel: Mapped[str] = mapped_column(String(30))
+    state: Mapped[str] = mapped_column(String(30), default="new")
+    mode: Mapped[str] = mapped_column(String(10), default="ai")
+    opted_out: Mapped[bool] = mapped_column(Boolean, default=False)
+    fields: Mapped[dict] = mapped_column(JSON, default=dict)
+    assessment: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "lead_id"], ["leads.workspace_id", "leads.id"], ondelete="CASCADE"
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "template_id"],
+            ["qualification_templates.workspace_id", "qualification_templates.id"],
+        ),
+        UniqueConstraint("workspace_id", "lead_id", "channel"),
+        UniqueConstraint("workspace_id", "id"),
+    )
+
+
+class QualificationEvent(Base):
+    """Immutable receipt, extraction/assessment snapshot, or human control audit."""
+
+    __tablename__ = "qualification_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    workspace_id: Mapped[str] = mapped_column(String(36))
+    conversation_id: Mapped[str] = mapped_column(String(36))
+    channel: Mapped[str] = mapped_column(String(30))
+    external_message_id: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    payload_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    kind: Mapped[str] = mapped_column(String(40))
+    actor_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "conversation_id"],
+            ["qualification_conversations.workspace_id", "qualification_conversations.id"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("workspace_id", "channel", "external_message_id"),
+        Index("ix_qualification_events_timeline", "workspace_id", "conversation_id", "created_at", "id"),
     )

@@ -85,10 +85,13 @@ class LeadCreate(LeadFields):
 
 class LeadUpdate(LeadFields):
     stage_id: UUID
+    # Compatibility with clients that round-trip LeadOut; never used to set points.
+    qualification_score: int | None = Field(default=None, ge=0, le=100)
 
 
 class LeadOut(LeadFields):
     id: str
+    qualification_score: int | None = None
     stage_id: str
     created_at: datetime
     updated_at: datetime

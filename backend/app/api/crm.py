@@ -6,10 +6,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 
 from app.core.database import get_db
 from app.core.security import admin, current_user, member
-from app.models.entities import Lead, Membership, Note, Stage, User, Workspace
+from app.models.entities import Lead, Membership, Note, Stage, User, Workspace, QualificationConversation
 from app.schemas.contracts import (
     LeadCreate,
     LeadOut,
@@ -29,8 +30,12 @@ from app.services.workspaces import create_workspace
 router = APIRouter(tags=["Workspaces & CRM"])
 
 
-def scoped_lead(db, ws, lead_id):
-    lead = db.scalar(select(Lead).where(Lead.id == str(lead_id), Lead.workspace_id == str(ws)))
+def scoped_lead(db, ws, lead_id, lock=False):
+    query = select(Lead).where(Lead.id == str(lead_id), Lead.workspace_id == str(ws))
+    try:
+        lead = db.scalar(query.with_for_update(nowait=True) if lock else query)
+    except OperationalError:
+        raise HTTPException(409, "This lead is being processed. Retry manually shortly.") from None
     if not lead:
         raise HTTPException(404, "Lead not found")
     return lead
@@ -146,9 +151,19 @@ def lead_get(ws: UUID, lead_id: UUID, membership=Depends(member), db: Session = 
 def lead_update(
     ws: UUID, lead_id: UUID, body: LeadUpdate, membership=Depends(member), db: Session = Depends(get_db)
 ):
-    lead = scoped_lead(db, ws, lead_id)
+    lead = scoped_lead(db, ws, lead_id, lock=True)
     scoped_stage(db, ws, body.stage_id)
-    for key, value in body.model_dump().items():
+    if body.qualification_score is not None and body.qualification_score != lead.qualification_score:
+        raise HTTPException(422, "Qualification points are computed from rules and cannot be edited")
+    conversation = db.scalar(
+        select(QualificationConversation).where(
+            QualificationConversation.workspace_id == str(ws),
+            QualificationConversation.lead_id == str(lead_id),
+        )
+    )
+    if conversation and body.status != lead.status:
+        raise HTTPException(409, "Use qualification human override to change this lead's decision")
+    for key, value in body.model_dump(exclude={"qualification_score"}).items():
         setattr(lead, key, str(value) if key == "stage_id" else value)
     db.commit()
     return lead

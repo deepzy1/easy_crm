@@ -43,7 +43,8 @@ import {
   DashboardMetrics,
   LeadWorkspace,
 } from "./LeadWorkspace";
-import { Playground, Settings } from "./AI";
+import { Settings } from "./AI";
+import { Qualification } from "./Qualification";
 
 const navigation = [
   { name: "Dashboard", icon: House },
@@ -646,10 +647,14 @@ function WorkspaceShell({
               refreshWorkspaces={refreshWorkspaces}
             />
           ) : page === "AI Qualification" ? (
-            <Playground
+            <Qualification
               key={base}
               base={base}
               onSettings={() => navigate("Settings")}
+              onLead={(lead) => {
+                navigate("Leads");
+                setLeadSearch(lead.name);
+              }}
             />
           ) : ["Dashboard", "Leads", "Pipeline", "Analytics"].includes(page) ? (
             <>
@@ -738,10 +743,10 @@ function WorkspaceShell({
                     <Sparkles size={22} />
                   </div>
                   <div>
-                    <h3>A smarter perspective is on its way.</h3>
+                    <h3>Understand the fit behind every conversation.</h3>
                     <p>
-                      Knowledge-grounded qualification and AI insights are
-                      planned for a future session.
+                      Configure your qualification rules and explore
+                      evidence-backed scores in the AI Qualification simulator.
                     </p>
                   </div>
                   <Button onClick={() => navigate("AI Qualification")}>
@@ -772,7 +777,7 @@ function WorkspaceShell({
           <footer className="main-footer">
             <span>Made for meaningful connections.</span>
             <span>
-              EasyCRM <span>·</span> Session 1
+              EasyCRM <span>·</span> Session 3
             </span>
           </footer>
         </main>
@@ -795,8 +800,9 @@ function WorkspaceShell({
               then try a real prompt in the AI playground.
             </p>
             <p>
-              Inbox, knowledge ingestion, integrations, and automated
-              qualification are planned for future sessions.
+              Use AI Qualification to configure rules, simulate a prospect
+              conversation and review its score and evidence. Inbox, website/PDF
+              ingestion and live messaging are planned for future sessions.
             </p>
             <Button variant="primary" onClick={() => setHelp(false)}>
               Got it <Check size={15} />

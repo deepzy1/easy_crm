@@ -1,0 +1,41 @@
+{
+  "verified_on": "2026-10-27",
+  "scope": "Session 3 qualification on the existing Session 1 application",
+  "backend": {
+    "result": "passed",
+    "passed": 98,
+    "failed": 0,
+    "duration_seconds": 7.52,
+    "database": "Disposable PostgreSQL 16 at loopback port 55435, easycrm_session3_test",
+    "providers": "Mocked; includes Gemini and NVIDIA adapter routing",
+    "warnings": ["Existing Starlette/httpx TestClient deprecation warning"]
+  },
+  "browser": {
+    "result": "passed",
+    "full_suite_passed": 9,
+    "full_suite_duration_seconds": 32.9,
+    "final_qualification_cases_passed": 2,
+    "database": "Separate disposable easycrm_session3_browser_test",
+    "provider": "Explicit tests/browser_qualification.py fictional qualification fixture; real auth/API/database/retrieval/scoring",
+    "checks": ["Full conversation with exact citation and score 75 to 100", "CRM persistence and human override", "Mobile rules, opt-out, blocked resumption and reload", "Existing model-settings, CRM and workspace regressions"]
+  },
+  "static_checks": {
+    "ruff_check": "passed",
+    "ruff_format_check": "passed; 34 files",
+    "typescript_and_vite_build": "passed",
+    "prettier_check": "passed"
+  },
+  "migrations": {
+    "revision": "57002a21df59",
+    "parent": "be78ada7931e",
+    "fresh_upgrade": "passed",
+    "downgrade_reapply": "passed on disposable database",
+    "existing_lead_preservation": "passed; name, summary and monetary value preserved",
+    "alembic_check": "passed; no model drift",
+    "application_database_modified": false
+  },
+  "not_executed": ["Live Gemini/NVIDIA inference or measured extraction accuracy", "Remote CI", "Production deployment/load/security/accessibility audits"],
+  "deferred": ["Session 2 website/PDF ingestion and vector RAG", "Signed durable channel intake", "External dispatch/outbox and live WhatsApp", "Other live integrations, billing and voice"],
+  "evidence": ["session-3-desktop.png", "session-3-mobile.png"],
+  "git": "No commits or pushes"
+}

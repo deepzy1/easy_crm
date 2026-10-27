@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
 from app.ai.providers import ProviderError
-from app.api import ai, auth, crm
+from app.api import ai, auth, crm, qualification
 from app.core.config import get_settings
 from app.core.database import SessionLocal
 
@@ -19,7 +19,7 @@ logger = logging.getLogger("easycrm")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
-app = FastAPI(title="EasyCRM", version="0.1.0", description="Session 1 CRM foundation and AI playground")
+app = FastAPI(title="EasyCRM", version="0.3.0", description="CRM, versioned lead qualification and simulator")
 settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
@@ -118,5 +118,5 @@ def health():
         return JSONResponse(status_code=503, content={"status": "unavailable", "database": "disconnected"})
 
 
-for router in (auth.router, crm.router, ai.router):
+for router in (auth.router, crm.router, ai.router, qualification.router):
     app.include_router(router, prefix="/api/v1")

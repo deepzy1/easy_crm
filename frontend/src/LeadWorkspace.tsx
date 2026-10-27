@@ -1,5 +1,6 @@
 import { Input, Select, Textarea, Card, Table } from "./components/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { LeadQualificationPanel } from "./Qualification";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -322,6 +323,12 @@ export function LeadWorkspace({
                                 "A new opportunity. Add a note to start the conversation."}
                             </p>
                             <Badge value={l.source} />
+                            {l.qualification_score != null && (
+                              <span className="card-qualification">
+                                <Badge value={l.status} />
+                                <strong>{l.qualification_score}/100</strong>
+                              </span>
+                            )}
                           </button>
                           <footer className="lead-footer">
                             <span>
@@ -378,6 +385,7 @@ export function LeadWorkspace({
                     <th>Company</th>
                     <th>Stage</th>
                     <th>Status</th>
+                    <th>Score</th>
                     <th>Source</th>
                     <th className="right">Value</th>
                   </tr>
@@ -422,6 +430,11 @@ export function LeadWorkspace({
                       </td>
                       <td>
                         <Badge value={l.status} />
+                      </td>
+                      <td className="tabular">
+                        {l.qualification_score == null
+                          ? "—"
+                          : `${l.qualification_score}/100`}
                       </td>
                       <td>
                         <Badge value={l.source} />
@@ -494,6 +507,19 @@ function LeadEditor({
   const [confirm, setConfirm] = useState(false);
   const [note, setNote] = useState("");
   const client = useQueryClient();
+  const currentLead = useQuery({
+    queryKey: ["lead", base, lead?.id],
+    queryFn: () => api<Lead>(`${base}/leads/${lead!.id}`),
+    enabled: !!lead,
+  });
+  useEffect(() => {
+    if (currentLead.data)
+      setForm((f) => ({
+        ...f,
+        status: currentLead.data!.status,
+        summary: currentLead.data!.summary,
+      }));
+  }, [currentLead.data?.status, currentLead.data?.summary]);
   const notes = useQuery({
     queryKey: ["notes", base, lead?.id],
     queryFn: () => api<Note[]>(`${base}/leads/${lead!.id}/notes`),
@@ -631,6 +657,7 @@ function LeadEditor({
                 Qualification status
                 <Select
                   aria-label="Qualification status"
+                  disabled={currentLead.data?.qualification_score != null}
                   value={form.status}
                   onChange={(e) => update("status", e.target.value)}
                 >
@@ -702,6 +729,7 @@ function LeadEditor({
               </Button>
             </div>
           </form>
+          {lead && <LeadQualificationPanel base={base} leadId={lead.id} />}
           {lead && (
             <section className="notes-section">
               <SectionHeading

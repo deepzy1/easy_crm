@@ -2,6 +2,8 @@
 
 **Version:** 0.1 · **Draft contract:** Names and sample payloads are proposed; implement with OpenAPI-generated schemas and tests.
 
+**Implementation update (27 October 2026):** Session 3's actual incremental API and payloads are documented in [SESSION_3_HANDOFF.md](SESSION_3_HANDOFF.md). In particular, `/qualification/simulate` accepts one persisted lead/message with an external receipt ID and aware timestamp, rather than the stateless conversation-array proposal below. Rules are immutable versions created by POST; activation is a separate POST. Reviewed business text uses `/qualification/knowledge`; website/PDF ingestion is not implemented. `/leads/{id}/qualification/control` provides auditable takeover/resume/close/override. Existing CRM status spells `needs-human`; the qualification state machine uses `needs_human` and maps it at the boundary. Generated OpenAPI is authoritative.
+
 ## 1. Conventions
 
 - Base URL: `/api/v1`; JSON over HTTPS except binary document upload.

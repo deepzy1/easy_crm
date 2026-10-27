@@ -2,6 +2,8 @@
 
 **Version:** 0.1 · **Design status:** Proposed · **Style:** Modular monolith with async workers
 
+**Implemented Session 3 update:** The existing FastAPI/React/PostgreSQL monolith now includes immutable qualification templates, one canonical qualification conversation per lead, immutable message/control events, reviewed-text lexical retrieval and deterministic scoring. No workers, vectors, uploads or outbound dispatch were added. `services/qualification.py` owns processing and returns a validated action plan; the caller owns the transaction. A nonblocking lead row lock serializes inference and control changes, while a workspace lock serializes template version allocation/activation. See [SESSION_3_HANDOFF.md](SESSION_3_HANDOFF.md) for the implemented state machine, failure/replay behavior and the outstanding Session 2/4 boundaries. The diagrams below remain the broader target architecture.
+
 ## 1. Architecture decision
 
 Start with **one FastAPI backend** organized by domains plus Celery workers, a React SPA, PostgreSQL/pgvector, Redis and private object storage. This supports strong separation and avoids unnecessary microservice overhead. Use an AI provider adapter; do **not** require multi-agent orchestration.

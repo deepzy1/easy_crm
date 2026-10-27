@@ -122,6 +122,9 @@ test("AI preferences survive reload and playground displays real missing-key err
   await page
     .getByRole("button", { name: "AI Qualification AI", exact: true })
     .click();
+  await page
+    .getByRole("button", { name: "Text playground", exact: true })
+    .click();
   await page.getByLabel("Your AI prompt").fill("Hello from the browser test");
   await page.getByRole("button", { name: "Send prompt" }).click();
   await expect(page.getByRole("alert")).toContainText("NVIDIA_API_KEY");

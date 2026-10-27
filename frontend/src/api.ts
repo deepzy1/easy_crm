@@ -23,6 +23,7 @@ export type Lead = {
   status: string;
   value: string;
   summary: string;
+  qualification_score: number | null;
   stage_id: string;
   created_at: string;
   updated_at: string;

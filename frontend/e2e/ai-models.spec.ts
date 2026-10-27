@@ -36,6 +36,9 @@ async function mockWorkspace(page: Page) {
       };
     else if (path.endsWith("/workspaces")) body = [ws];
     else if (path.endsWith("/stages")) body = [];
+    else if (path.endsWith("/qualification/templates"))
+      body = { items: [], examples: {}, can_manage: true };
+    else if (path.endsWith("/leads")) body = { items: [], next_cursor: null };
     else if (path.endsWith("/overview"))
       body = {
         total_leads: 0,
@@ -174,6 +177,9 @@ test("dynamic catalogue search, refresh, explicit test, persistence and playgrou
   await expect(page.locator(".active-model")).toContainText(nvidia[0]);
   await page
     .getByRole("button", { name: "AI Qualification AI", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Text playground", exact: true })
     .click();
   await page.getByLabel("Your AI prompt").fill("Hello");
   await page.getByRole("button", { name: "Send prompt" }).click();

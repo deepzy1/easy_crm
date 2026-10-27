@@ -1,6 +1,8 @@
 import { defineConfig } from "@playwright/test";
 const frontendPort = Number(process.env.PLAYWRIGHT_FRONTEND_PORT || 5173);
 const backendPort = Number(process.env.PLAYWRIGHT_BACKEND_PORT || 8000);
+const qualificationFixture =
+  process.env.PLAYWRIGHT_QUALIFICATION_FIXTURE === "1";
 export default defineConfig({
   testDir: "./e2e",
   workers: 1,
@@ -17,7 +19,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `../backend/.venv/bin/python -m uvicorn app.main:app --app-dir ../backend --port ${backendPort} --no-access-log`,
+      command: `../backend/.venv/bin/python -m uvicorn ${qualificationFixture ? "browser_qualification:app --app-dir ../backend/tests" : "app.main:app --app-dir ../backend"} --port ${backendPort} --no-access-log`,
       url: `http://127.0.0.1:${backendPort}/api/v1/health`,
       reuseExistingServer: !process.env.CI,
       env: {

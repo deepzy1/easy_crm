@@ -33,7 +33,7 @@ jobs:
         working-directory: frontend
       - run: npx playwright install --with-deps chromium
         working-directory: frontend
-      - run: npm run test:e2e
+      - run: PLAYWRIGHT_QUALIFICATION_FIXTURE=1 npm run test:e2e
         working-directory: frontend
       - uses: actions/upload-artifact@v4
         if: failure()
