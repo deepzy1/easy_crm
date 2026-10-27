@@ -1,5 +1,8 @@
 tass : 12345678910
 
-cocker re-build after chnage sin backend, migration, frontend
+cocker re-build after chnage sin backend, migration,   frontend
 
 sudo docker compose up -d --build
+
+git config --local user.name "Deepak R"
+git config --local user.email "hdeepakranganath@gmail.com"
